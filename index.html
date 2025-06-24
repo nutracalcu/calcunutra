@@ -86,10 +86,18 @@ label {
 font-weight: bold;
 }
 
-select, input {
+select, input[type="number"] {
 padding: 8px;
 border: 1px solid #ddd;
 border-radius: 4px;
+width: 100%;
+box-sizing: border-box;
+}
+
+.dose-input-container {
+display: flex;
+align-items: center;
+gap: 10px;
 }
 
 button {
@@ -160,11 +168,12 @@ tr:nth-child(even) {
 background-color: #f2f2f2;
 }
 
-.secondary-info {
-margin-top: 20px;
-padding: 15px;
+.secondary-info, .percentage-info {
+margin-top: 10px;
+padding: 10px;
 background-color: #e8f4fc;
 border-radius: 5px;
+font-size: 0.9em;
 }
 
 .unit-selection {
@@ -172,13 +181,15 @@ grid-column: span 2;
 margin: 10px 0;
 }
 
-.unit-selection label {
+.unit-selection label, .dose-input-container label {
 margin-right: 15px;
+font-weight: normal;
 }
 
-.unit-selection input {
+.unit-selection input, .dose-input-container input[type="radio"] {
 margin-right: 5px;
 }
+
 
 @media (max-width: 768px) {
 .input-section {
@@ -222,14 +233,24 @@ grid-column: span 1;
 </select>
 
 <label for="mineral-salt-form">Salt Form:</label>
+<div>
 <select id="mineral-salt-form">
 <option value="">-- Select Mineral First --</option>
 </select>
+<div id="mineral-percentage-info" class="percentage-info" style="display: none;"></div>
+</div>
 
-<label for="mineral-dose">Your Supplement Dose (mg):</label>
+
+<label for="mineral-dose">Your Supplement Dose:</label>
+<div class="dose-input-container">
 <input type="number" id="mineral-dose" step="0.01" min="0">
+<input type="radio" name="mineral-units" value="mg" id="mineral-mg" checked>
+<label for="mineral-mg">mg</label>
+<input type="radio" name="mineral-units" value="mcg" id="mineral-mcg">
+<label for="mineral-mcg">mcg</label>
+</div>
 
-<button id="calculate-mineral">Calculate Elemental Amount</button>
+<button id="calculate-mineral">Calculate</button>
 </div>
 
 <div class="results-section" id="mineral-results" style="display: none;">
@@ -243,7 +264,7 @@ grid-column: span 1;
 <thead>
 <tr>
 <th>Group</th>
-<th>RDA (mg/day)</th>
+<th>RDA</th>
 <th>% RDA</th>
 </tr>
 </thead>
@@ -299,7 +320,7 @@ grid-column: span 1;
 </select>
 
 <div class="unit-selection" id="vitamin-unit-container" style="display: none;">
-<label>Units:</label>
+<label>Dose Units:</label>
 <input type="radio" name="vitamin-units" value="mg" id="vitamin-mg" checked>
 <label for="vitamin-mg">mg</label>
 
@@ -313,7 +334,7 @@ grid-column: span 1;
 <label for="vitamin-dose">Your Supplement Dose:</label>
 <input type="number" id="vitamin-dose" step="0.01" min="0">
 
-<button id="calculate-vitamin">Calculate Elemental Amount</button>
+<button id="calculate-vitamin">Calculate</button>
 </div>
 
 <div class="results-section" id="vitamin-results" style="display: none;">
@@ -355,7 +376,6 @@ grid-column: span 1;
 </div>
 
 <script>
-// Complete Mineral Data from Excel
 const mineralData = {
 calcium: {
 name: "Calcium",
@@ -538,6 +558,7 @@ rdaGroups: [
 },
 chromium: {
 name: "Chromium",
+rdaUnit: "mcg",
 saltForms: [
 { id: "picolinate", name: "Chromium Picolinate", percentage: 0.1242, secondary: null },
 { id: "chloride", name: "Chromium Chloride", percentage: 0.3283, secondary: { name: "Chloride", percentage: 0.2238 } },
@@ -546,23 +567,24 @@ saltForms: [
 { id: "chloride-hexahydrate", name: "Chromium Chloride Hexahydrate", percentage: 0.1951, secondary: null }
 ],
 rdaGroups: [
-{ name: "Children (1-3y)", rda: 50 },
-{ name: "Children (4-6y)", rda: 50 },
-{ name: "Children (7-9y)", rda: 50 },
-{ name: "Boy (10-12y)", rda: 50 },
-{ name: "Girl (10-12y)", rda: 50 },
-{ name: "Boy (13-15y)", rda: 50 },
-{ name: "Girl (13-15y)", rda: 50 },
-{ name: "Boy (16-18y)", rda: 50 },
-{ name: "Girl (16-18y)", rda: 50 },
-{ name: "Men (19-50y)", rda: 50 },
-{ name: "Women (19-50y)", rda: 50 },
-{ name: "Pregnant (19-30y)", rda: 50 },
-{ name: "Lactating (19-30y)", rda: 50 }
+{ name: "Children (1-3y)", rda: 11 },
+{ name: "Children (4-6y)", rda: 15 },
+{ name: "Children (7-9y)", rda: 21 },
+{ name: "Boy (10-12y)", rda: 25 },
+{ name: "Girl (10-12y)", rda: 21 },
+{ name: "Boy (13-15y)", rda: 35 },
+{ name: "Girl (13-15y)", rda: 24 },
+{ name: "Boy (16-18y)", rda: 35 },
+{ name: "Girl (16-18y)", rda: 24 },
+{ name: "Men (19-50y)", rda: 35 },
+{ name: "Women (19-50y)", rda: 25 },
+{ name: "Pregnant (19-30y)", rda: 30 },
+{ name: "Lactating (19-30y)", rda: 45 }
 ]
 },
 molybdenum: {
 name: "Molybdenum",
+rdaUnit: "mcg",
 saltForms: [
 { id: "pentoxide", name: "Molybdenum Pentoxide", percentage: 0.6665, secondary: null }
 ],
@@ -578,8 +600,8 @@ rdaGroups: [
 { name: "Girl (16-18y)", rda: 45 },
 { name: "Men (19-50y)", rda: 45 },
 { name: "Women (19-50y)", rda: 45 },
-{ name: "Pregnant (19-30y)", rda: 45 },
-{ name: "Lactating (19-30y)", rda: 45 }
+{ name: "Pregnant (19-30y)", rda: 50 },
+{ name: "Lactating (19-30y)", rda: 50 }
 ]
 },
 magnesium: {
@@ -644,6 +666,7 @@ rdaGroups: [
 },
 selenium: {
 name: "Selenium",
+rdaUnit: "mcg",
 saltForms: [
 { id: "dioxide", name: "Selenium Dioxide OR Selenium Dioxide Monohydrate", percentage: 0.7116, secondary: null },
 { id: "selenomethionine", name: "Selenomethionine", percentage: 0.4026, secondary: null }
@@ -798,11 +821,14 @@ const mineralSaltForm = document.getElementById('mineral-salt-form');
 const calculateMineralBtn = document.getElementById('calculate-mineral');
 const mineralRdaGroupSelect = document.getElementById('mineral-rda-group-select');
 const calculateReverseMineralBtn = document.getElementById('calculate-reverse-mineral');
+const mineralPercentageInfo = document.getElementById('mineral-percentage-info');
 
 mineralSelect.addEventListener('change', () => {
 const selectedMineralKey = mineralSelect.value;
 mineralSaltForm.innerHTML = '<option value="">-- Select Salt Form --</option>';
 mineralRdaGroupSelect.innerHTML = '<option value="">-- Select Age/Gender Group --</option>';
+mineralPercentageInfo.style.display = 'none';
+
 
 if (selectedMineralKey) {
 const selectedMineral = mineralData[selectedMineralKey];
@@ -813,43 +839,84 @@ option.textContent = form.name;
 mineralSaltForm.appendChild(option);
 });
 
+const unit = selectedMineral.rdaUnit || 'mg';
 selectedMineral.rdaGroups.forEach((group, index) => {
 const option = document.createElement('option');
 option.value = index;
-option.textContent = `${group.name} (${group.rda || 'N/A'} mg)`;
+option.textContent = `${group.name} (${group.rda || 'N/A'} ${unit})`;
 mineralRdaGroupSelect.appendChild(option);
 });
+}
+});
+
+mineralSaltForm.addEventListener('change', () => {
+const mineralKey = mineralSelect.value;
+const saltFormId = mineralSaltForm.value;
+mineralPercentageInfo.style.display = 'none';
+
+if (mineralKey && saltFormId) {
+const mineral = mineralData[mineralKey];
+const saltForm = mineral.saltForms.find(sf => sf.id === saltFormId);
+if (saltForm && saltForm.percentage !== null) {
+mineralPercentageInfo.innerHTML = `Contains <strong>${(saltForm.percentage * 100).toFixed(2)}%</strong> elemental ${mineral.name}.`;
+mineralPercentageInfo.style.display = 'block';
+}
 }
 });
 
 calculateMineralBtn.addEventListener('click', () => {
 const mineralKey = mineralSelect.value;
 const saltFormId = mineralSaltForm.value;
-const dose = parseFloat(document.getElementById('mineral-dose').value);
+let dose = parseFloat(document.getElementById('mineral-dose').value);
+const doseUnit = document.querySelector('input[name="mineral-units"]:checked').value;
 
 if (!mineralKey || !saltFormId || isNaN(dose)) {
-alert('Please fill in all mineral fields for forward calculation.');
+alert('Please fill in all mineral fields.');
 return;
+}
+
+// Standardize dose to mg for calculation
+let doseInMg = dose;
+if (doseUnit === 'mcg') {
+doseInMg = dose / 1000;
 }
 
 const mineral = mineralData[mineralKey];
 const saltForm = mineral.saltForms.find(sf => sf.id === saltFormId);
+const rdaUnit = mineral.rdaUnit || 'mg';
 
 if (saltForm.percentage === null) {
 alert('This salt form does not provide the primary mineral.');
 return;
 }
-const elementalAmount = dose * saltForm.percentage;
 
-document.getElementById('elemental-mineral-result').textContent = `${elementalAmount.toFixed(2)} mg`;
+const elementalAmountInMg = doseInMg * saltForm.percentage;
+
+// Display elemental amount in the correct unit (mg or mcg)
+let displayAmount = elementalAmountInMg;
+let displayUnit = 'mg';
+if (rdaUnit === 'mcg') {
+displayAmount = elementalAmountInMg * 1000;
+displayUnit = 'mcg';
+}
+document.getElementById('elemental-mineral-result').textContent = `${displayAmount.toFixed(3)} ${displayUnit}`;
+
 
 const mineralRdaResults = document.getElementById('mineral-rda-results');
 mineralRdaResults.innerHTML = '';
+
+
 mineral.rdaGroups.forEach(group => {
-const percentageRda = group.rda ? (elementalAmount / group.rda * 100).toFixed(2) : 'N/A';
+let elementalAmountForRda = elementalAmountInMg;
+// If RDA is in mcg, convert elemental amount from mg to mcg for calculation
+if (rdaUnit === 'mcg') {
+elementalAmountForRda *= 1000;
+}
+
+const percentageRda = group.rda ? (elementalAmountForRda / group.rda * 100).toFixed(2) : 'N/A';
 const row = `<tr>
 <td>${group.name}</td>
-<td>${group.rda || '-'} mg</td>
+<td>${group.rda || '-'} ${rdaUnit}</td>
 <td>${percentageRda}%</td>
 </tr>`;
 mineralRdaResults.innerHTML += row;
@@ -857,7 +924,7 @@ mineralRdaResults.innerHTML += row;
 
 const secondaryInfoDiv = document.getElementById('mineral-secondary-info');
 if(saltForm.secondary && saltForm.secondary.percentage) {
-const secondaryAmount = dose * saltForm.secondary.percentage;
+const secondaryAmount = doseInMg * saltForm.secondary.percentage;
 secondaryInfoDiv.innerHTML = `<p>This form also provides <strong>${secondaryAmount.toFixed(2)} mg</strong> of <strong>${saltForm.secondary.name}</strong>.</p>`;
 secondaryInfoDiv.style.display = 'block';
 } else {
@@ -881,6 +948,7 @@ return;
 const mineral = mineralData[mineralKey];
 const saltForm = mineral.saltForms.find(sf => sf.id === saltFormId);
 const rdaGroup = mineral.rdaGroups[rdaGroupIndex];
+const rdaUnit = mineral.rdaUnit || 'mg';
 
 if (!rdaGroup.rda) {
 alert('RDA is not available for the selected group.');
@@ -892,7 +960,13 @@ alert('This salt form cannot be used to provide the primary mineral.');
 return;
 }
 
-const targetElementalAmount = rdaGroup.rda * (desiredRdaPercent / 100);
+let targetElementalAmount = rdaGroup.rda * (desiredRdaPercent / 100);
+
+// If RDA unit is mcg, convert target to mg before calculating dose from salt
+if (rdaUnit === 'mcg') {
+targetElementalAmount /= 1000;
+}
+
 const requiredSaltDose = targetElementalAmount / saltForm.percentage;
 
 const resultDiv = document.getElementById('reverse-mineral-result');
