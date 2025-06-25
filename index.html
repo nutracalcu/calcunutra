@@ -567,19 +567,19 @@ saltForms: [
 { id: "chloride-hexahydrate", name: "Chromium Chloride Hexahydrate", percentage: 0.1951, secondary: null }
 ],
 rdaGroups: [
-{ name: "Children (1-3y)", rda: 11 },
-{ name: "Children (4-6y)", rda: 15 },
-{ name: "Children (7-9y)", rda: 21 },
-{ name: "Boy (10-12y)", rda: 25 },
-{ name: "Girl (10-12y)", rda: 21 },
-{ name: "Boy (13-15y)", rda: 35 },
-{ name: "Girl (13-15y)", rda: 24 },
-{ name: "Boy (16-18y)", rda: 35 },
-{ name: "Girl (16-18y)", rda: 24 },
-{ name: "Men (19-50y)", rda: 35 },
-{ name: "Women (19-50y)", rda: 25 },
-{ name: "Pregnant (19-30y)", rda: 30 },
-{ name: "Lactating (19-30y)", rda: 45 }
+{ name: "Children (1-3y)", rda: 50 },
+{ name: "Children (4-6y)", rda: 50 },
+{ name: "Children (7-9y)", rda: 50 },
+{ name: "Boy (10-12y)", rda: 50 },
+{ name: "Girl (10-12y)", rda: 50 },
+{ name: "Boy (13-15y)", rda: 50 },
+{ name: "Girl (13-15y)", rda: 50 },
+{ name: "Boy (16-18y)", rda: 50 },
+{ name: "Girl (16-18y)", rda: 50 },
+{ name: "Men (19-50y)", rda: 50 },
+{ name: "Women (19-50y)", rda: 50 },
+{ name: "Pregnant (19-30y)", rda: 50 },
+{ name: "Lactating (19-30y)", rda: 50 }
 ]
 },
 molybdenum: {
@@ -875,53 +875,45 @@ alert('Please fill in all mineral fields.');
 return;
 }
 
-// Standardize dose to mg for calculation
-let doseInMg = dose;
-if (doseUnit === 'mcg') {
-doseInMg = dose / 1000;
-}
+// 1. Standardize dose to mg for internal calculation
+let doseInMg = (doseUnit === 'mcg') ? dose / 1000 : dose;
 
 const mineral = mineralData[mineralKey];
 const saltForm = mineral.saltForms.find(sf => sf.id === saltFormId);
-const rdaUnit = mineral.rdaUnit || 'mg';
+const mineralRdaUnit = mineral.rdaUnit || 'mg';
 
 if (saltForm.percentage === null) {
 alert('This salt form does not provide the primary mineral.');
 return;
 }
 
+// 2. Calculate elemental amount in the base unit (mg)
 const elementalAmountInMg = doseInMg * saltForm.percentage;
 
-// Display elemental amount in the correct unit (mg or mcg)
-let displayAmount = elementalAmountInMg;
-let displayUnit = 'mg';
-if (rdaUnit === 'mcg') {
-displayAmount = elementalAmountInMg * 1000;
-displayUnit = 'mcg';
-}
-document.getElementById('elemental-mineral-result').textContent = `${displayAmount.toFixed(3)} ${displayUnit}`;
+// 3. Determine display unit based on user's selection and convert for display
+let displayAmount = (doseUnit === 'mcg') ? elementalAmountInMg * 1000 : elementalAmountInMg;
+document.getElementById('elemental-mineral-result').textContent = `${displayAmount.toFixed(3)} ${doseUnit}`;
 
-
+// 4. Populate RDA table
 const mineralRdaResults = document.getElementById('mineral-rda-results');
 mineralRdaResults.innerHTML = '';
-
-
 mineral.rdaGroups.forEach(group => {
-let elementalAmountForRda = elementalAmountInMg;
-// If RDA is in mcg, convert elemental amount from mg to mcg for calculation
-if (rdaUnit === 'mcg') {
-elementalAmountForRda *= 1000;
-}
+    let elementalAmountForRda = elementalAmountInMg;
+    // If mineral's native RDA unit is mcg, convert the elemental amount to mcg for comparison
+    if (mineralRdaUnit === 'mcg') {
+        elementalAmountForRda *= 1000;
+    }
 
-const percentageRda = group.rda ? (elementalAmountForRda / group.rda * 100).toFixed(2) : 'N/A';
-const row = `<tr>
-<td>${group.name}</td>
-<td>${group.rda || '-'} ${rdaUnit}</td>
-<td>${percentageRda}%</td>
-</tr>`;
-mineralRdaResults.innerHTML += row;
+    const percentageRda = group.rda ? (elementalAmountForRda / group.rda * 100).toFixed(2) : 'N/A';
+    const row = `<tr>
+        <td>${group.name}</td>
+        <td>${group.rda || '-'} ${mineralRdaUnit}</td>
+        <td>${percentageRda}%</td>
+    </tr>`;
+    mineralRdaResults.innerHTML += row;
 });
 
+// 5. Handle secondary info
 const secondaryInfoDiv = document.getElementById('mineral-secondary-info');
 if(saltForm.secondary && saltForm.secondary.percentage) {
 const secondaryAmount = doseInMg * saltForm.secondary.percentage;
@@ -1043,58 +1035,58 @@ const vitamin = vitaminData[vitaminKey];
 const form = vitamin.forms.find(f => f.id === formId);
 const selectedUnit = document.querySelector('input[name="vitamin-units"]:checked').value;
 
-let calculatedAmountMg = 0;
-let displayAmount = 0;
-let displayUnit = vitamin.rdaUnit;
+// 1. Standardize dose to mg for internal calculation
+let doseInMg;
+if (selectedUnit === 'IU') {
+    if (['a', 'd'].includes(vitaminKey)) {
+        doseInMg = (dose * form.iu_to_mcg) / 1000;
+    } else if (vitaminKey === 'e') {
+        doseInMg = dose / form.mg_to_iu;
+    }
+} else if (selectedUnit === 'mcg') {
+    doseInMg = dose / 1000;
+} else { // mg
+    doseInMg = dose;
+}
 
-// This logic calculates the final amount in the vitamin's native RDA unit (mg or mcg)
-let amountInRdaUnit;
-
-if (['a', 'd'].includes(vitaminKey)) { // IU to mcg
-let doseInMcg = dose;
-if (selectedUnit === 'IU') doseInMcg = dose * form.iu_to_mcg;
-else if (selectedUnit === 'mg') doseInMcg = dose * 1000;
-amountInRdaUnit = doseInMcg; // RDA unit is mcg
-} else if (vitaminKey === 'e') { // IU to mg
-let doseInMg = dose;
-if (selectedUnit === 'IU') doseInMg = dose / form.mg_to_iu;
-amountInRdaUnit = doseInMg; // RDA unit is mg
-} else { // Standard percentage-based vitamins
-let elementalAmount = dose * (form.percentage || 1);
-if (vitamin.rdaUnit === 'mcg' && selectedUnit === 'mg') {
-amountInRdaUnit = elementalAmount * 1000;
-} else if (vitamin.rdaUnit === 'mg' && selectedUnit === 'mcg') {
-amountInRdaUnit = elementalAmount / 1000;
+// 2. Calculate elemental amount in mg
+let elementalAmountInMg;
+if (['a', 'd', 'e'].includes(vitaminKey)) {
+    elementalAmountInMg = doseInMg;
 } else {
-amountInRdaUnit = elementalAmount;
-}
-}
-
-// For RDA calculation, convert everything to mg
-if(vitamin.rdaUnit === 'mcg') {
-calculatedAmountMg = amountInRdaUnit / 1000;
-} else {
-calculatedAmountMg = amountInRdaUnit;
+    elementalAmountInMg = doseInMg * (form.percentage || 1);
 }
 
+// 3. Convert elemental amount to the user's selected unit for display
+let displayAmount;
+if (selectedUnit === 'mg') {
+    displayAmount = elementalAmountInMg;
+} else if (selectedUnit === 'mcg') {
+    displayAmount = elementalAmountInMg * 1000;
+} else { // IU
+    if (['a', 'd'].includes(vitaminKey)) {
+        displayAmount = (elementalAmountInMg * 1000) / form.iu_to_mcg;
+    } else if (vitaminKey === 'e') {
+        displayAmount = elementalAmountInMg * form.mg_to_iu;
+    }
+}
+document.getElementById('elemental-vitamin-result').textContent = `${displayAmount.toFixed(2)} ${selectedUnit}`;
 
-document.getElementById('elemental-vitamin-result').textContent = `${amountInRdaUnit.toFixed(2)} ${displayUnit}`;
-
+// 4. Populate RDA table
 const vitaminRdaResults = document.getElementById('vitamin-rda-results');
 vitaminRdaResults.innerHTML = '';
-
 vitamin.rdaGroups.forEach(group => {
-let percentageRda = 'N/A';
-if (group.rda) {
-let rdaInMg = vitamin.rdaUnit === 'mcg' ? group.rda / 1000 : group.rda;
-percentageRda = `${(calculatedAmountMg / rdaInMg * 100).toFixed(2)}%`;
-}
-const row = `<tr>
-<td>${group.name}</td>
-<td>${group.rda || '-'} ${vitamin.rdaUnit}</td>
-<td>${percentageRda}</td>
-</tr>`;
-vitaminRdaResults.innerHTML += row;
+    let percentageRda = 'N/A';
+    if (group.rda) {
+        let rdaInMg = vitamin.rdaUnit === 'mcg' ? group.rda / 1000 : group.rda;
+        percentageRda = `${(elementalAmountInMg / rdaInMg * 100).toFixed(2)}%`;
+    }
+    const row = `<tr>
+        <td>${group.name}</td>
+        <td>${group.rda || '-'} ${vitamin.rdaUnit}</td>
+        <td>${percentageRda}</td>
+    </tr>`;
+    vitaminRdaResults.innerHTML += row;
 });
 
 document.getElementById('vitamin-results').style.display = 'block';
