@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nutrition Supplement Calculator</title>
+<title>Nutrition Supplement Calculator (Reversed)</title>
 <style>
 body {
 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -116,19 +116,11 @@ button:hover {
 background-color: #2980b9;
 }
 
-.results-section, .reverse-calc-section {
+.results-section {
 margin-top: 20px;
 padding: 15px;
 background-color: #f9f9f9;
 border-radius: 5px;
-}
-
-.reverse-calc-result {
-margin-top: 15px;
-padding: 10px;
-background-color: #e8f4fc;
-border-left: 5px solid #3498db;
-font-weight: bold;
 }
 
 .result-row {
@@ -205,7 +197,7 @@ grid-column: span 1;
 <body>
 <header>
 <h1>Nutrition Supplement Calculator</h1>
-<p class="subtitle">Calculate elemental amounts and RDA percentages for minerals and vitamins</p>
+<p class="subtitle">Calculate required salt dose from your desired elemental amount</p>
 </header>
 
 <div class="tabs">
@@ -214,7 +206,7 @@ grid-column: span 1;
 </div>
 
 <div id="minerals" class="tab-content active">
-<h3>Calculate Elemental Amount from Dose</h3>
+<h3>Calculate Dose from Elemental Amount</h3>
 <div class="input-section">
 <label for="mineral-select">Select Mineral:</label>
 <select id="mineral-select">
@@ -240,10 +232,9 @@ grid-column: span 1;
 <div id="mineral-percentage-info" class="percentage-info" style="display: none;"></div>
 </div>
 
-
-<label for="mineral-dose">Your Supplement Dose:</label>
+<label for="mineral-elemental-amount">Desired Elemental Amount:</label>
 <div class="dose-input-container">
-<input type="number" id="mineral-dose" step="0.01" min="0">
+<input type="number" id="mineral-elemental-amount" step="0.01" min="0">
 <input type="radio" name="mineral-units" value="mg" id="mineral-mg" checked>
 <label for="mineral-mg">mg</label>
 <input type="radio" name="mineral-units" value="mcg" id="mineral-mcg">
@@ -255,8 +246,8 @@ grid-column: span 1;
 
 <div class="results-section" id="mineral-results" style="display: none;">
 <div class="result-row">
-<span class="result-label">Elemental Amount:</span>
-<span id="elemental-mineral-result">0 mg</span>
+<span class="result-label">Required Salt Dose:</span>
+<span id="required-salt-dose-result">0 mg</span>
 </div>
 
 <h4>RDA Percentage by Age/Gender Group</h4>
@@ -276,25 +267,10 @@ grid-column: span 1;
 </div>
 </div>
 
-<div class="reverse-calc-section">
-<h3>Reverse Calculation: Calculate Dose from RDA</h3>
-<div class="input-section">
-<label for="mineral-rda-group-select">Select Age/Gender Group:</label>
-<select id="mineral-rda-group-select">
-<option value="">-- Select Mineral First --</option>
-</select>
-
-<label for="mineral-desired-rda">Desired RDA Percentage (%):</label>
-<input type="number" id="mineral-desired-rda" min="0" value="100">
-
-<button id="calculate-reverse-mineral">Calculate Required Dose</button>
-</div>
-<div id="reverse-mineral-result" class="reverse-calc-result" style="display: none;"></div>
-</div>
 </div>
 
 <div id="vitamins" class="tab-content">
-<h3>Calculate Elemental Amount from Dose</h3>
+<h3>Calculate Dose from Elemental Amount</h3>
 <div class="input-section">
 <label for="vitamin-select">Select Vitamin:</label>
 <select id="vitamin-select">
@@ -331,16 +307,16 @@ grid-column: span 1;
 <label for="vitamin-IU">IU</label>
 </div>
 
-<label for="vitamin-dose">Your Supplement Dose:</label>
-<input type="number" id="vitamin-dose" step="0.01" min="0">
+<label for="vitamin-elemental-amount">Desired Elemental Amount:</label>
+<input type="number" id="vitamin-elemental-amount" step="0.01" min="0">
 
 <button id="calculate-vitamin">Calculate</button>
 </div>
 
 <div class="results-section" id="vitamin-results" style="display: none;">
 <div class="result-row">
-<span class="result-label">Calculated Amount:</span>
-<span id="elemental-vitamin-result">0 mg</span>
+<span class="result-label">Required Salt Dose:</span>
+<span id="required-vitamin-dose-result">0 mg</span>
 </div>
 
 <h4>RDA Percentage by Age/Gender Group</h4>
@@ -355,22 +331,6 @@ grid-column: span 1;
 <tbody id="vitamin-rda-results">
 </tbody>
 </table>
-</div>
-
-<div class="reverse-calc-section">
-<h3>Reverse Calculation: Calculate Dose from RDA</h3>
-<div class="input-section">
-<label for="vitamin-rda-group-select">Select Age/Gender Group:</label>
-<select id="vitamin-rda-group-select">
-<option value="">-- Select Vitamin First --</option>
-</select>
-
-<label for="vitamin-desired-rda">Desired RDA Percentage (%):</label>
-<input type="number" id="vitamin-desired-rda" min="0" value="100">
-
-<button id="calculate-reverse-vitamin">Calculate Required Dose</button>
-</div>
-<div id="reverse-vitamin-result" class="reverse-calc-result" style="display: none;"></div>
 </div>
 
 </div>
@@ -423,8 +383,10 @@ saltForms: [
 { id: "molibdate", name: "Sodium Molibdate", percentage: 0.1115, secondary: { name: "Molybdenum", percentage: 0.4659 } },
 { id: "molybdate-dihydrate", name: "Sodium Molybdate Dihydrate", percentage: 0.0949, secondary: { name: "Molybdenum", percentage: 0.3965 } },
 { id: "selenite", name: "Sodium Selenite", percentage: 0.27, secondary: { name: "Selenium", percentage: 0.4565 } },
-{ id: "selenate", name: "Sodium Selenate", percentage: null, secondary: { name: "Selenium", percentage: 0.4179 } },
-{ id: "ascorbate", name: "Sodium Ascorbate", percentage: null, secondary: { name: "Ascorbic Acid", percentage: 0.889 } },
+// FIXED: Corrected null value
+{ id: "selenate", name: "Sodium Selenate", percentage: 0.2433, secondary: { name: "Selenium", percentage: 0.4179 } },
+// FIXED: Corrected null value
+{ id: "ascorbate", name: "Sodium Ascorbate", percentage: 0.1162, secondary: { name: "Ascorbic Acid", percentage: 0.889 } },
 { id: "benzoate", name: "Sodium Benzoate", percentage: 0.1594, secondary: null },
 { id: "citrate", name: "Sodium Citrate (Trisodium Citrate)", percentage: 0.2671, secondary: null },
 { id: "hydrochloride", name: "Sodium Hydrochloride", percentage: 0.0287, secondary: null }
@@ -815,20 +777,18 @@ document.getElementById(tab.dataset.tab).classList.add('active');
 });
 });
 
-// Mineral Calculator Logic
+// --- Mineral Calculator Logic (REVERSED) ---
 const mineralSelect = document.getElementById('mineral-select');
 const mineralSaltForm = document.getElementById('mineral-salt-form');
 const calculateMineralBtn = document.getElementById('calculate-mineral');
-const mineralRdaGroupSelect = document.getElementById('mineral-rda-group-select');
-const calculateReverseMineralBtn = document.getElementById('calculate-reverse-mineral');
+// REMOVED: Reverse calculation variables
 const mineralPercentageInfo = document.getElementById('mineral-percentage-info');
 
 mineralSelect.addEventListener('change', () => {
 const selectedMineralKey = mineralSelect.value;
 mineralSaltForm.innerHTML = '<option value="">-- Select Salt Form --</option>';
-mineralRdaGroupSelect.innerHTML = '<option value="">-- Select Age/Gender Group --</option>';
+// REMOVED: RDA group select population
 mineralPercentageInfo.style.display = 'none';
-
 
 if (selectedMineralKey) {
 const selectedMineral = mineralData[selectedMineralKey];
@@ -839,13 +799,7 @@ option.textContent = form.name;
 mineralSaltForm.appendChild(option);
 });
 
-const unit = selectedMineral.rdaUnit || 'mg';
-selectedMineral.rdaGroups.forEach((group, index) => {
-const option = document.createElement('option');
-option.value = index;
-option.textContent = `${group.name} (${group.rda || 'N/A'} ${unit})`;
-mineralRdaGroupSelect.appendChild(option);
-});
+// REMOVED: RDA group select population logic
 }
 });
 
@@ -867,34 +821,34 @@ mineralPercentageInfo.style.display = 'block';
 calculateMineralBtn.addEventListener('click', () => {
 const mineralKey = mineralSelect.value;
 const saltFormId = mineralSaltForm.value;
-let dose = parseFloat(document.getElementById('mineral-dose').value);
+// CHANGED: Get elemental amount from new ID
+let elementalAmount = parseFloat(document.getElementById('mineral-elemental-amount').value);
 const doseUnit = document.querySelector('input[name="mineral-units"]:checked').value;
 
-if (!mineralKey || !saltFormId || isNaN(dose)) {
+if (!mineralKey || !saltFormId || isNaN(elementalAmount)) {
 alert('Please fill in all mineral fields.');
 return;
 }
 
-// 1. Standardize dose to mg for internal calculation
-let doseInMg = (doseUnit === 'mcg') ? dose / 1000 : dose;
+// 1. Standardize elemental amount to mg for internal calculation
+let elementalAmountInMg = (doseUnit === 'mcg') ? elementalAmount / 1000 : elementalAmount;
 
 const mineral = mineralData[mineralKey];
 const saltForm = mineral.saltForms.find(sf => sf.id === saltFormId);
 const mineralRdaUnit = mineral.rdaUnit || 'mg';
 
-if (saltForm.percentage === null) {
-alert('This salt form does not provide the primary mineral.');
+if (saltForm.percentage === null || saltForm.percentage === 0) {
+alert('This salt form does not provide the primary mineral or percentage is zero.');
 return;
 }
 
-// 2. Calculate elemental amount in the base unit (mg)
-const elementalAmountInMg = doseInMg * saltForm.percentage;
+// 2. REVERSED CALCULATION: Calculate required salt dose
+const requiredSaltDose = elementalAmountInMg / saltForm.percentage;
 
-// 3. Determine display unit based on user's selection and convert for display
-let displayAmount = (doseUnit === 'mcg') ? elementalAmountInMg * 1000 : elementalAmountInMg;
-document.getElementById('elemental-mineral-result').textContent = `${displayAmount.toFixed(3)} ${doseUnit}`;
+// 3. Display the required salt dose (always in mg)
+document.getElementById('required-salt-dose-result').textContent = `${requiredSaltDose.toFixed(3)} mg`;
 
-// 4. Populate RDA table
+// 4. Populate RDA table (based on the entered elemental amount)
 const mineralRdaResults = document.getElementById('mineral-rda-results');
 mineralRdaResults.innerHTML = '';
 mineral.rdaGroups.forEach(group => {
@@ -913,11 +867,12 @@ mineral.rdaGroups.forEach(group => {
     mineralRdaResults.innerHTML += row;
 });
 
-// 5. Handle secondary info
+// 5. Handle secondary info (based on the *calculated* salt dose)
 const secondaryInfoDiv = document.getElementById('mineral-secondary-info');
 if(saltForm.secondary && saltForm.secondary.percentage) {
-const secondaryAmount = doseInMg * saltForm.secondary.percentage;
-secondaryInfoDiv.innerHTML = `<p>This form also provides <strong>${secondaryAmount.toFixed(2)} mg</strong> of <strong>${saltForm.secondary.name}</strong>.</p>`;
+// CHANGED: Use requiredSaltDose for calculation
+const secondaryAmount = requiredSaltDose * saltForm.secondary.percentage;
+secondaryInfoDiv.innerHTML = `<p>This dose (${requiredSaltDose.toFixed(2)} mg of ${saltForm.name}) also provides <strong>${secondaryAmount.toFixed(2)} mg</strong> of <strong>${saltForm.secondary.name}</strong>.</p>`;
 secondaryInfoDiv.style.display = 'block';
 } else {
 secondaryInfoDiv.style.display = 'none';
@@ -926,61 +881,21 @@ secondaryInfoDiv.style.display = 'none';
 document.getElementById('mineral-results').style.display = 'block';
 });
 
-calculateReverseMineralBtn.addEventListener('click', () => {
-const mineralKey = mineralSelect.value;
-const saltFormId = mineralSaltForm.value;
-const rdaGroupIndex = mineralRdaGroupSelect.value;
-const desiredRdaPercent = parseFloat(document.getElementById('mineral-desired-rda').value);
+// REMOVED: Reverse mineral calculation listener
 
-if (!mineralKey || !saltFormId || rdaGroupIndex === "" || isNaN(desiredRdaPercent)) {
-alert('Please select a mineral, salt form, RDA group, and enter a desired RDA %.');
-return;
-}
-
-const mineral = mineralData[mineralKey];
-const saltForm = mineral.saltForms.find(sf => sf.id === saltFormId);
-const rdaGroup = mineral.rdaGroups[rdaGroupIndex];
-const rdaUnit = mineral.rdaUnit || 'mg';
-
-if (!rdaGroup.rda) {
-alert('RDA is not available for the selected group.');
-return;
-}
-
-if (saltForm.percentage === null || saltForm.percentage === 0) {
-alert('This salt form cannot be used to provide the primary mineral.');
-return;
-}
-
-let targetElementalAmount = rdaGroup.rda * (desiredRdaPercent / 100);
-
-// If RDA unit is mcg, convert target to mg before calculating dose from salt
-if (rdaUnit === 'mcg') {
-targetElementalAmount /= 1000;
-}
-
-const requiredSaltDose = targetElementalAmount / saltForm.percentage;
-
-const resultDiv = document.getElementById('reverse-mineral-result');
-resultDiv.innerHTML = `To get ${desiredRdaPercent}% of the RDA for ${rdaGroup.name}, you need <strong>${requiredSaltDose.toFixed(2)} mg</strong> of ${saltForm.name}.`;
-resultDiv.style.display = 'block';
-});
-
-
-// Vitamin Calculator Logic
+// --- Vitamin Calculator Logic (REVERSED) ---
 const vitaminSelect = document.getElementById('vitamin-select');
 const vitaminFormSelect = document.getElementById('vitamin-form');
 const calculateVitaminBtn = document.getElementById('calculate-vitamin');
 const unitContainer = document.getElementById('vitamin-unit-container');
-const vitaminRdaGroupSelect = document.getElementById('vitamin-rda-group-select');
-const calculateReverseVitaminBtn = document.getElementById('calculate-reverse-vitamin');
+// REMOVED: Reverse calculation variables
 
 
 vitaminSelect.addEventListener('change', () => {
 const vitaminKey = vitaminSelect.value;
 const vitamin = vitaminData[vitaminKey];
 vitaminFormSelect.innerHTML = '<option value="">-- Select Form --</option>';
-vitaminRdaGroupSelect.innerHTML = '<option value="">-- Select Vitamin First --</option>';
+// REMOVED: RDA group select population
 unitContainer.style.display = 'none';
 
 if (vitamin) {
@@ -991,12 +906,7 @@ option.textContent = form.name;
 vitaminFormSelect.appendChild(option);
 });
 
-vitamin.rdaGroups.forEach((group, index) => {
-const option = document.createElement('option');
-option.value = index;
-option.textContent = `${group.name} (${group.rda || 'N/A'} ${vitamin.rdaUnit})`;
-vitaminRdaGroupSelect.appendChild(option);
-});
+// REMOVED: RDA group select population
 
 // Show unit selection for specific vitamins
 if (['a', 'd', 'e'].includes(vitaminKey)) {
@@ -1024,9 +934,10 @@ document.getElementById('vitamin-IU').checked = true;
 calculateVitaminBtn.addEventListener('click', () => {
 const vitaminKey = vitaminSelect.value;
 const formId = vitaminFormSelect.value;
-let dose = parseFloat(document.getElementById('vitamin-dose').value);
+// CHANGED: Get elemental amount from new ID
+let elementalAmount = parseFloat(document.getElementById('vitamin-elemental-amount').value);
 
-if (!vitaminKey || !formId || isNaN(dose)) {
+if (!vitaminKey || !formId || isNaN(elementalAmount)) {
 alert('Please fill in all vitamin fields.');
 return;
 }
@@ -1035,44 +946,40 @@ const vitamin = vitaminData[vitaminKey];
 const form = vitamin.forms.find(f => f.id === formId);
 const selectedUnit = document.querySelector('input[name="vitamin-units"]:checked').value;
 
-// 1. Standardize dose to mg for internal calculation
-let doseInMg;
+// 1. Standardize desired elemental amount to mg for internal calculation
+let elementalAmountInMg;
 if (selectedUnit === 'IU') {
     if (['a', 'd'].includes(vitaminKey)) {
-        doseInMg = (dose * form.iu_to_mcg) / 1000;
+        elementalAmountInMg = (elementalAmount * form.iu_to_mcg) / 1000;
     } else if (vitaminKey === 'e') {
-        doseInMg = dose / form.mg_to_iu;
+        elementalAmountInMg = elementalAmount / form.mg_to_iu;
     }
 } else if (selectedUnit === 'mcg') {
-    doseInMg = dose / 1000;
+    elementalAmountInMg = elementalAmount / 1000;
 } else { // mg
-    doseInMg = dose;
+    elementalAmountInMg = elementalAmount;
 }
 
-// 2. Calculate elemental amount in mg
-let elementalAmountInMg;
+// 2. REVERSED CALCULATION: Calculate required salt dose
+let requiredSaltDose;
 if (['a', 'd', 'e'].includes(vitaminKey)) {
-    elementalAmountInMg = doseInMg;
+    // For A, D, E, the "salt dose" is the same as the elemental dose, just in mg
+    requiredSaltDose = elementalAmountInMg;
 } else {
-    elementalAmountInMg = doseInMg * (form.percentage || 1);
-}
-
-// 3. Convert elemental amount to the user's selected unit for display
-let displayAmount;
-if (selectedUnit === 'mg') {
-    displayAmount = elementalAmountInMg;
-} else if (selectedUnit === 'mcg') {
-    displayAmount = elementalAmountInMg * 1000;
-} else { // IU
-    if (['a', 'd'].includes(vitaminKey)) {
-        displayAmount = (elementalAmountInMg * 1000) / form.iu_to_mcg;
-    } else if (vitaminKey === 'e') {
-        displayAmount = elementalAmountInMg * form.mg_to_iu;
+    // For B, C, K, divide by the elemental percentage
+    const percentage = form.percentage || 1;
+    if (percentage === 0) {
+        alert('Percentage for this form is zero, cannot calculate dose.');
+        return;
     }
+    requiredSaltDose = elementalAmountInMg / percentage;
 }
-document.getElementById('elemental-vitamin-result').textContent = `${displayAmount.toFixed(2)} ${selectedUnit}`;
 
-// 4. Populate RDA table
+// 3. Display the required salt dose (always in mg)
+document.getElementById('required-vitamin-dose-result').textContent = `${requiredSaltDose.toFixed(3)} mg`;
+
+
+// 4. Populate RDA table (based on the entered elemental amount in mg)
 const vitaminRdaResults = document.getElementById('vitamin-rda-results');
 vitaminRdaResults.innerHTML = '';
 vitamin.rdaGroups.forEach(group => {
@@ -1092,46 +999,7 @@ vitamin.rdaGroups.forEach(group => {
 document.getElementById('vitamin-results').style.display = 'block';
 });
 
-calculateReverseVitaminBtn.addEventListener('click', () => {
-const vitaminKey = vitaminSelect.value;
-const formId = vitaminFormSelect.value;
-const rdaGroupIndex = vitaminRdaGroupSelect.value;
-const desiredRdaPercent = parseFloat(document.getElementById('vitamin-desired-rda').value);
-
-if (!vitaminKey || !formId || rdaGroupIndex === "" || isNaN(desiredRdaPercent)) {
-alert('Please select a vitamin, form, RDA group, and enter a desired RDA %.');
-return;
-}
-
-const vitamin = vitaminData[vitaminKey];
-const form = vitamin.forms.find(f => f.id === formId);
-const rdaGroup = vitamin.rdaGroups[rdaGroupIndex];
-
-if (!rdaGroup.rda) {
-alert('RDA is not available for the selected group.');
-return;
-}
-
-let requiredDose;
-let resultUnit;
-
-const targetElementalAmount = rdaGroup.rda * (desiredRdaPercent / 100);
-
-if (['a', 'd'].includes(vitaminKey)) { // Result in IU
-requiredDose = targetElementalAmount / form.iu_to_mcg;
-resultUnit = 'IU';
-} else if (vitaminKey === 'e') { // Result in mg
-requiredDose = targetElementalAmount; // Target is already in mg
-resultUnit = 'mg';
-} else { // B-vitamins, C, K
-requiredDose = targetElementalAmount / (form.percentage || 1);
-resultUnit = vitamin.rdaUnit;
-}
-
-const resultDiv = document.getElementById('reverse-vitamin-result');
-resultDiv.innerHTML = `To get ${desiredRdaPercent}% of the RDA for ${rdaGroup.name}, you need <strong>${requiredDose.toFixed(2)} ${resultUnit}</strong> of ${form.name}.`;
-resultDiv.style.display = 'block';
-});
+// REMOVED: Reverse vitamin calculation listener
 
 });
 
