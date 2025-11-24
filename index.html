@@ -3,1006 +3,421 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nutrition Supplement Calculator (Reversed)</title>
+<title>Pro Supplement Formulator & Auditor</title>
+<script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+
 <style>
-body {
-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-line-height: 1.6;
-color: #333;
-max-width: 1200px;
-margin: 0 auto;
-padding: 20px;
-background-color: #f5f7fa;
-}
+    :root {
+        --primary: #3498db;
+        --secondary: #2c3e50;
+        --success: #27ae60;
+        --danger: #c0392b;
+        --bg: #f5f7fa;
+    }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: var(--bg);
+    }
 
-header {
-text-align: center;
-margin-bottom: 30px;
-padding: 20px;
-background-color: #2c3e50;
-color: white;
-border-radius: 8px;
-}
+    header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 25px;
+        background-color: var(--secondary);
+        color: white;
+        border-radius: 8px;
+    }
+    h1 { margin: 0; font-size: 2.2em; }
 
-h1 {
-margin: 0;
-font-size: 2.2em;
-}
+    .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+    .tab {
+        padding: 12px 25px;
+        cursor: pointer;
+        background-color: #e0e0e0;
+        border: 1px solid #ddd;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        margin-right: 5px;
+        font-weight: bold;
+    }
+    .tab.active {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    .tab[data-tab="audit"].active { background-color: #8e44ad; border-color: #8e44ad; }
 
-h3 {
-border-bottom: 2px solid #3498db;
-padding-bottom: 5px;
-margin-top: 30px;
-}
+    .tab-content {
+        display: none;
+        background: #fff;
+        padding: 25px;
+        border-radius: 0 8px 8px 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .tab-content.active { display: block; }
 
-.subtitle {
-font-style: italic;
-opacity: 0.9;
-}
+    /* SHARED STYLES */
+    .calculator-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+    .input-group { background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 20px; }
+    label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
+    select, input[type="number"] {
+        padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 15px;
+    }
+    button.calculate-btn {
+        background-color: var(--primary); color: white; border: none; padding: 15px; border-radius: 6px;
+        cursor: pointer; font-size: 18px; font-weight: bold; width: 100%; margin-top: 10px;
+    }
 
-.tabs {
-display: flex;
-margin-bottom: 20px;
-border-bottom: 1px solid #ddd;
-}
+    /* AUDIT TAB STYLES */
+    .scanner-layout { display: grid; grid-template-columns: 40% 60%; gap: 20px; height: auto; min-height: 80vh; }
+    .scan-panel { border: 1px solid #ddd; padding: 15px; background: #fff; border-radius: 8px; }
+    
+    /* PASTE BOX STYLE */
+    .paste-area {
+        width: 100%;
+        height: 150px;
+        padding: 10px;
+        border: 2px dashed #8e44ad;
+        border-radius: 6px;
+        background: #fdfbff;
+        font-family: monospace;
+        font-size: 0.9em;
+        resize: vertical;
+        box-sizing: border-box;
+    }
 
-.tab {
-padding: 10px 20px;
-cursor: pointer;
-background-color: #f1f1f1;
-border: 1px solid #ddd;
-border-bottom: none;
-border-radius: 5px 5px 0 0;
-margin-right: 5px;
-}
+    .btn-parse {
+        background-color: #8e44ad;
+        color: white; border: none; padding: 10px; border-radius: 5px;
+        cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px;
+    }
 
-.tab.active {
-background-color: #3498db;
-color: white;
-border-color: #3498db;
-}
+    .divider {
+        display: flex; align-items: center; text-align: center; margin: 20px 0; color: #888;
+    }
+    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #eee; }
+    .divider:not(:empty)::before { margin-right: .25em; }
+    .divider:not(:empty)::after { margin-left: .25em; }
 
-.tab-content {
-display: none;
-background: white;
-padding: 20px;
-border-radius: 0 5px 5px 5px;
-box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
+    .rows-container { background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; min-height: 200px; }
+    
+    .audit-row {
+        display: grid; grid-template-columns: 2fr 1fr 1fr 0.5fr; gap: 10px; padding: 10px; border-bottom: 1px solid #eee;
+        background: #fff; align-items: center;
+    }
+    .audit-row.new { animation: flash 1s; background-color: #f3e5f5; }
 
-.tab-content.active {
-display: block;
-}
+    /* REPORT TABLE */
+    .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .report-table th { background: #2c3e50; color: white; padding: 10px; text-align: left; }
+    .report-table td { padding: 10px; border-bottom: 1px solid #eee; }
+    
+    .badge { padding: 4px 8px; border-radius: 4px; color: white; font-size: 0.85em; font-weight: bold; }
+    .bg-green { background: #27ae60; }
+    .bg-red { background: #c0392b; }
 
-.input-section {
-display: grid;
-grid-template-columns: 1fr 2fr;
-gap: 15px;
-align-items: center;
-margin-bottom: 20px;
-}
-
-label {
-font-weight: bold;
-}
-
-select, input[type="number"] {
-padding: 8px;
-border: 1px solid #ddd;
-border-radius: 4px;
-width: 100%;
-box-sizing: border-box;
-}
-
-.dose-input-container {
-display: flex;
-align-items: center;
-gap: 10px;
-}
-
-button {
-background-color: #3498db;
-color: white;
-border: none;
-padding: 10px 15px;
-border-radius: 4px;
-cursor: pointer;
-font-size: 16px;
-grid-column: span 2;
-margin-top: 10px;
-}
-
-button:hover {
-background-color: #2980b9;
-}
-
-.results-section {
-margin-top: 20px;
-padding: 15px;
-background-color: #f9f9f9;
-border-radius: 5px;
-}
-
-.result-row {
-display: flex;
-justify-content: space-between;
-margin-bottom: 10px;
-padding-bottom: 10px;
-border-bottom: 1px solid #eee;
-}
-
-.result-row:last-child {
-border-bottom: none;
-}
-
-.result-label {
-font-weight: bold;
-}
-
-table {
-width: 100%;
-border-collapse: collapse;
-margin: 20px 0;
-}
-
-th, td {
-padding: 12px;
-text-align: left;
-border-bottom: 1px solid #ddd;
-}
-
-th {
-background-color: #2c3e50;
-color: white;
-}
-
-tr:nth-child(even) {
-background-color: #f2f2f2;
-}
-
-.secondary-info, .percentage-info {
-margin-top: 10px;
-padding: 10px;
-background-color: #e8f4fc;
-border-radius: 5px;
-font-size: 0.9em;
-}
-
-.unit-selection {
-grid-column: span 2;
-margin: 10px 0;
-}
-
-.unit-selection label, .dose-input-container label {
-margin-right: 15px;
-font-weight: normal;
-}
-
-.unit-selection input, .dose-input-container input[type="radio"] {
-margin-right: 5px;
-}
-
-
-@media (max-width: 768px) {
-.input-section {
-grid-template-columns: 1fr;
-}
-
-button {
-grid-column: span 1;
-}
-}
+    @keyframes flash { 0% { background-color: #e1bee7; } 100% { background-color: #fff; } }
 </style>
 </head>
 <body>
+
 <header>
-<h1>Nutrition Supplement Calculator</h1>
-<p class="subtitle">Calculate required salt dose from your desired elemental amount</p>
+    <h1>Pro Supplement Formulator</h1>
 </header>
 
 <div class="tabs">
-<div class="tab active" data-tab="minerals">Minerals</div>
-<div class="tab" data-tab="vitamins">Vitamins</div>
+    <div class="tab active" data-tab="minerals">Minerals</div>
+    <div class="tab" data-tab="vitamins">Vitamins</div>
+    <div class="tab" data-tab="audit" style="color: #8e44ad;">AI Label Auditor</div>
 </div>
 
 <div id="minerals" class="tab-content active">
-<h3>Calculate Dose from Elemental Amount</h3>
-<div class="input-section">
-<label for="mineral-select">Select Mineral:</label>
-<select id="mineral-select">
-<option value="">-- Select Mineral --</option>
-<option value="calcium">Calcium</option>
-<option value="sodium">Sodium</option>
-<option value="iron">Iron (Ferrous)</option>
-<option value="copper">Copper</option>
-<option value="zinc">Zinc</option>
-<option value="potassium">Potassium</option>
-<option value="chromium">Chromium</option>
-<option value="molybdenum">Molybdenum</option>
-<option value="magnesium">Magnesium</option>
-<option value="manganese">Manganese</option>
-<option value="selenium">Selenium</option>
-</select>
-
-<label for="mineral-salt-form">Salt Form:</label>
-<div>
-<select id="mineral-salt-form">
-<option value="">-- Select Mineral First --</option>
-</select>
-<div id="mineral-percentage-info" class="percentage-info" style="display: none;"></div>
-</div>
-
-<label for="mineral-elemental-amount">Desired Elemental Amount:</label>
-<div class="dose-input-container">
-<input type="number" id="mineral-elemental-amount" step="0.01" min="0">
-<input type="radio" name="mineral-units" value="mg" id="mineral-mg" checked>
-<label for="mineral-mg">mg</label>
-<input type="radio" name="mineral-units" value="mcg" id="mineral-mcg">
-<label for="mineral-mcg">mcg</label>
-</div>
-
-<button id="calculate-mineral">Calculate</button>
-</div>
-
-<div class="results-section" id="mineral-results" style="display: none;">
-<div class="result-row">
-<span class="result-label">Required Salt Dose:</span>
-<span id="required-salt-dose-result">0 mg</span>
-</div>
-
-<h4>RDA Percentage by Age/Gender Group</h4>
-<table>
-<thead>
-<tr>
-<th>Group</th>
-<th>RDA</th>
-<th>% RDA</th>
-</tr>
-</thead>
-<tbody id="mineral-rda-results">
-</tbody>
-</table>
-
-<div class="secondary-info" id="mineral-secondary-info" style="display: none;">
-</div>
-</div>
-
+    <h3>Standard Mineral Calculator</h3>
+    <div class="calculator-grid">
+        <div class="input-group">
+            <label>Select Mineral:</label>
+            <select id="mineral-select">
+                <option value="">-- Select --</option>
+                <option value="calcium">Calcium</option>
+                <option value="iron">Iron</option>
+                <option value="zinc">Zinc</option>
+                <option value="magnesium">Magnesium</option>
+            </select>
+            <label>Salt Form:</label>
+            <select id="mineral-salt-form"><option>-- Select Mineral First --</option></select>
+            <label>Target Amount (mg):</label>
+            <input type="number" id="min-target">
+            <button class="calculate-btn" id="calc-min">Calculate</button>
+        </div>
+        <div class="input-group">
+            <div id="min-result" class="big-result" style="font-size:2em; font-weight:bold;">0 mg</div>
+            <small>Required Salt Dose</small>
+        </div>
+    </div>
 </div>
 
 <div id="vitamins" class="tab-content">
-<h3>Calculate Dose from Elemental Amount</h3>
-<div class="input-section">
-<label for="vitamin-select">Select Vitamin:</label>
-<select id="vitamin-select">
-<option value="">-- Select Vitamin --</option>
-<option value="b1">Thiamine (Vitamin B1)</option>
-<option value="b2">Riboflavin (Vitamin B2)</option>
-<option value="b3">Nicotinamide (Vitamin B3)</option>
-<option value="b5">Pantothenic Acid (Vitamin B5)</option>
-<option value="b6">Pyridoxine (Vitamin B6)</option>
-<option value="b7">Biotin (Vitamin B7)</option>
-<option value="b9">Folic Acid (Vitamin B9)</option>
-<option value="b12">Cyanocobalamin & Methylcobalamin (Vitamin B12)</option>
-<option value="c">Ascorbic Acid (Vitamin C)</option>
-<option value="a">Retinol (Vitamin A)</option>
-<option value="d">Calciferol (Vitamin D)</option>
-<option value="e">Tocopherol (Vitamin E)</option>
-<option value="k">Phytonadione & Menaquinone (Vitamin K1 & K2)</option>
-</select>
-
-<label for="vitamin-form">Form:</label>
-<select id="vitamin-form">
-<option value="">-- Select Vitamin First --</option>
-</select>
-
-<div class="unit-selection" id="vitamin-unit-container" style="display: none;">
-<label>Dose Units:</label>
-<input type="radio" name="vitamin-units" value="mg" id="vitamin-mg" checked>
-<label for="vitamin-mg">mg</label>
-
-<input type="radio" name="vitamin-units" value="mcg" id="vitamin-mcg">
-<label for="vitamin-mcg">mcg</label>
-
-<input type="radio" name="vitamin-units" value="IU" id="vitamin-IU">
-<label for="vitamin-IU">IU</label>
+    <h3>Standard Vitamin Calculator</h3>
+    <p>Select Tab 1 or Tab 3 for primary features.</p>
 </div>
 
-<label for="vitamin-elemental-amount">Desired Elemental Amount:</label>
-<input type="number" id="vitamin-elemental-amount" step="0.01" min="0">
+<div id="audit" class="tab-content">
+    <div class="scanner-layout">
+        
+        <div class="scan-panel">
+            <h3 style="margin-top:0; color:#8e44ad;">Input Method</h3>
+            
+            <label><strong>Option A: Quick Paste Text</strong></label>
+            <textarea id="paste-area" class="paste-area" placeholder="Paste label text here...
+Example:
+Zinc Sulphate
+42 mg
+Ferrous Bisglycinate
+60 mg"></textarea>
+            <button class="btn-parse" onclick="parseRawText()">⬇️ Process Pasted Text</button>
 
-<button id="calculate-vitamin">Calculate</button>
-</div>
+            <div class="divider">OR</div>
 
-<div class="results-section" id="vitamin-results" style="display: none;">
-<div class="result-row">
-<span class="result-label">Required Salt Dose:</span>
-<span id="required-vitamin-dose-result">0 mg</span>
-</div>
+            <label><strong>Option B: Upload Image</strong></label>
+            <input type="file" id="img-upload" accept="image/*" onchange="loadImage(event)" style="margin-bottom:10px;">
+            <div id="image-wrapper" style="background:#eee; height:150px; overflow:hidden; display:flex; justify-content:center; align-items:center; border-radius:4px;">
+                <img id="preview" style="max-height:100%; max-width:100%; display:none;">
+                <span id="img-placeholder" style="color:#999;">No Image</span>
+            </div>
+            <button class="calculate-btn" style="background:#2c3e50; font-size:1em; padding:10px;" onclick="performOCR()">✨ Auto-Scan Image</button>
+            <div id="progress" style="height:5px; background:#ddd; margin-top:5px;"><div id="bar" style="height:100%; width:0%; background:#8e44ad;"></div></div>
+        </div>
 
-<h4>RDA Percentage by Age/Gender Group</h4>
-<table>
-<thead>
-<tr>
-<th>Group</th>
-<th>RDA</th>
-<th>% RDA</th>
-</tr>
-</thead>
-<tbody id="vitamin-rda-results">
-</tbody>
-</table>
-</div>
+        <div class="scan-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3 style="margin:0;">Detected Ingredients</h3>
+                <button onclick="addEmptyRow()" style="padding:5px 10px;">+ Manual Row</button>
+            </div>
+            
+            <div class="rows-container">
+                <div id="rows-list">
+                    <p style="color:#999; text-align:center; padding-top:50px;">Rows will appear here...</p>
+                </div>
+            </div>
 
+            <div style="margin-top:20px;">
+                <label>RDA Standard:</label>
+                <select id="rda-group">
+                    <option value="men">Adult Men (ICMR 2020)</option>
+                    <option value="women">Adult Women (ICMR 2020)</option>
+                </select>
+                <button class="calculate-btn" style="background-color: #8e44ad;" onclick="generateReport()">Generate Audit Report</button>
+            </div>
+
+            <div id="report-output" style="display:none;">
+                <h4>Audit Results</h4>
+                <table class="report-table">
+                    <thead><tr><th>Ingredient</th><th>Input</th><th>Elemental</th><th>RDA Status</th></tr></thead>
+                    <tbody id="report-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
-const mineralData = {
-calcium: {
-name: "Calcium",
-saltForms: [
-{ id: "carbonate", name: "Calcium Carbonate", percentage: 0.4, secondary: null },
-{ id: "citrate", name: "Calcium Citrate", percentage: 0.2407, secondary: null },
-{ id: "citrate-maleate", name: "Calcium Citrate Maleate", percentage: 0.1845, secondary: null },
-{ id: "asparto-glycinate", name: "Calcium Asparto Glycinate", percentage: 0.1529, secondary: null },
-{ id: "phosphate", name: "Calcium Phosphate", percentage: 0.3876, secondary: { name: "Phosphorous", percentage: 0.1996 } },
-{ id: "orotate", name: "Calcium Orotate", percentage: 0.1144, secondary: null },
-{ id: "gluconate", name: "Calcium Gluconate", percentage: 0.0931, secondary: null },
-{ id: "lactate", name: "Calcium Lactate", percentage: 0.1836, secondary: null },
-{ id: "pantothenate", name: "Calcium Pantothenate", percentage: 0.084, secondary: { name: "Pantothenic Acid", percentage: 0.916 } },
-{ id: "dicalcium-phosphate", name: "Dicalcium Phosphate", percentage: 0.2945, secondary: { name: "Phosphorous", percentage: 0.2276 } },
-{ id: "ascorbate", name: "Calcium L-Ascorbate Dihydrate", percentage: 0.094, secondary: { name: "Ascorbic Acid", percentage: 0.826 } },
-{ id: "citrate-tetrahydrate", name: "Citrate Tetrahydrate Calcium", percentage: 0.21, secondary: { name: "Citric Acid", percentage: 0.3367 } },
-{ id: "citrate-malate", name: "Calcium Citrate malate", percentage: 0.66, secondary: null },
-{ id: "aspartate", name: "Calcium Aspartate", percentage: 0.2341, secondary: null },
-{ id: "lysinate", name: "Calcium Lysinate", percentage: 0.1212, secondary: null }
-],
-rdaGroups: [
-{ name: "Children (1-3y)", rda: 500 },
-{ name: "Children (4-6y)", rda: 550 },
-{ name: "Children (7-9y)", rda: 1300 },
-{ name: "Boy (10-12y)", rda: 850 },
-{ name: "Girl (10-12y)", rda: 850 },
-{ name: "Boy (13-15y)", rda: 1000 },
-{ name: "Girl (13-15y)", rda: 1000 },
-{ name: "Boy (16-18y)", rda: 1050 },
-{ name: "Girl (16-18y)", rda: 1050 },
-{ name: "Men (19-50y)", rda: 1000 },
-{ name: "Women (19-50y)", rda: 1000 },
-{ name: "Pregnant (19-30y)", rda: 1000 },
-{ name: "Lactating (19-30y)", rda: 1200 }
-]
-},
-sodium: {
-name: "Sodium",
-saltForms: [
-{ id: "bicarbonate", name: "Sodium Bicarbonate", percentage: 0.2735, secondary: null },
-{ id: "carbonate", name: "Sodium Carbonate", percentage: 0.2168, secondary: null },
-{ id: "chloride", name: "Sodium Chloride", percentage: 0.3932, secondary: { name: "Chloride", percentage: 0.6066 } },
-{ id: "salycinate", name: "Sodium Salycinate", percentage: 0.1435, secondary: null },
-{ id: "salycylate-selenium", name: "Sodium Salycylate (Selenium)", percentage: 0.1135, secondary: null },
-{ id: "molibdate", name: "Sodium Molibdate", percentage: 0.1115, secondary: { name: "Molybdenum", percentage: 0.4659 } },
-{ id: "molybdate-dihydrate", name: "Sodium Molybdate Dihydrate", percentage: 0.0949, secondary: { name: "Molybdenum", percentage: 0.3965 } },
-{ id: "selenite", name: "Sodium Selenite", percentage: 0.27, secondary: { name: "Selenium", percentage: 0.4565 } },
-// FIXED: Corrected null value
-{ id: "selenate", name: "Sodium Selenate", percentage: 0.2433, secondary: { name: "Selenium", percentage: 0.4179 } },
-// FIXED: Corrected null value
-{ id: "ascorbate", name: "Sodium Ascorbate", percentage: 0.1162, secondary: { name: "Ascorbic Acid", percentage: 0.889 } },
-{ id: "benzoate", name: "Sodium Benzoate", percentage: 0.1594, secondary: null },
-{ id: "citrate", name: "Sodium Citrate (Trisodium Citrate)", percentage: 0.2671, secondary: null },
-{ id: "hydrochloride", name: "Sodium Hydrochloride", percentage: 0.0287, secondary: null }
-],
-rdaGroups: [
-{ name: "Children (1-3y)", rda: 50 },
-{ name: "Children (4-6y)", rda: 1000 },
-{ name: "Children (7-9y)", rda: 1000 },
-{ name: "Boy (10-12y)", rda: 1000 },
-{ name: "Girl (10-12y)", rda: 1000 },
-{ name: "Boy (13-15y)", rda: 1000 },
-{ name: "Girl (13-15y)", rda: 1000 },
-{ name: "Boy (16-18y)", rda: 1000 },
-{ name: "Girl (16-18y)", rda: 1000 },
-{ name: "Men (19-50y)", rda: 1000 },
-{ name: "Women (19-50y)", rda: 1000 },
-{ name: "Pregnant (19-30y)", rda: 1000 },
-{ name: "Lactating (19-30y)", rda: 1000 }
-]
-},
-iron: {
-name: "Iron (Ferrous)",
-saltForms: [
-{ id: "gluconate", name: "Ferrous Gluconate", percentage: 0.1158, secondary: null },
-{ id: "ammonium-citrate", name: "Ferric Ammonium Citrate", percentage: 0.2131, secondary: null },
-{ id: "ascorbate", name: "Ferrous Ascorbate", percentage: 0.1375, secondary: null },
-{ id: "bisglycinate", name: "Ferrous Bisglycinate", percentage: 0.2737, secondary: null },
-{ id: "sulphate", name: "Ferrous Sulphate", percentage: 0.3675, secondary: null },
-{ id: "aspartoglycinate", name: "Ferrous Aspartoglycinate", percentage: 0.2131, secondary: null },
-{ id: "fumarate", name: "Ferrous Fumarate", percentage: 0.3286, secondary: null },
-{ id: "choline-citrate", name: "Iron Choline Citrate", percentage: 0.159, secondary: null },
-{ id: "pyrophosphate", name: "Ferric Pyrophosphate", percentage: 0.0749, secondary: null }
-],
-rdaGroups: [
-{ name: "Children (1-3y)", rda: 8 },
-{ name: "Children (4-6y)", rda: 11 },
-{ name: "Children (7-9y)", rda: 15 },
-{ name: "Boy (10-12y)", rda: 16 },
-{ name: "Girl (10-12y)", rda: 28 },
-{ name: "Boy (13-15y)", rda: 22 },
-{ name: "Girl (13-15y)", rda: 30 },
-{ name: "Boy (16-18y)", rda: 26 },
-{ name: "Girl (16-18y)", rda: 32 },
-{ name: "Men (19-50y)", rda: 19 },
-{ name: "Women (19-50y)", rda: 13.2 },
-{ name: "Pregnant (19-30y)", rda: 14.5 },
-{ name: "Lactating (19-30y)", rda: 23 }
-]
-},
-copper: {
-name: "Copper",
-saltForms: [
-{ id: "sulphate", name: "Copper Sulphate or Cupric Sulphate", percentage: 0.3981, secondary: null },
-{ id: "citrate", name: "Cupric Citrate", percentage: 0.199, secondary: null },
-{ id: "gluconate", name: "Copper Gluconate", percentage: 0.14, secondary: null },
-{ id: "oxide", name: "Cupric Oxide", percentage: 0.7988, secondary: null },
-{ id: "sulphate-pentahydrate", name: "Copper Sulphate Pentahydrate", percentage: 0.2545, secondary: null }
-],
-rdaGroups: [
-{ name: "Children (1-3y)", rda: 1.7 },
-{ name: "Children (4-6y)", rda: 1.7 },
-{ name: "Children (7-9y)", rda: 1.7 },
-{ name: "Boy (10-12y)", rda: 1.7 },
-{ name: "Girl (10-12y)", rda: 1.7 },
-{ name: "Boy (13-15y)", rda: 1.7 },
-{ name: "Girl (13-15y)", rda: 1.7 },
-{ name: "Boy (16-18y)", rda: 1.7 },
-{ name: "Girl (16-18y)", rda: 1.7 },
-{ name: "Men (19-50y)", rda: 1.7 },
-{ name: "Women (19-50y)", rda: 1.7 },
-{ name: "Pregnant (19-30y)", rda: 1.7 },
-{ name: "Lactating (19-30y)", rda: 1.7 }
-]
-},
-zinc: {
-name: "Zinc",
-saltForms: [
-{ id: "lactate", name: "Zinc Lactate", percentage: 0.2663, secondary: null },
-{ id: "sulphate", name: "Zinc Sulphate", percentage: 0.4049, secondary: null },
-{ id: "oxide", name: "Zinc Oxide", percentage: 0.8033, secondary: null },
-{ id: "gluconate", name: "Zinc Gluconate", percentage: 0.1434, secondary: null },
-{ id: "sulphate-monohydrate", name: "Zinc Sulphate Monohydrate", percentage: 0.3642, secondary: null },
-{ id: "bisglycinate", name: "Zinc Bisglycinate", percentage: 0.3062, secondary: null },
-{ id: "methionine", name: "Zinc Methionine", percentage: 0.2105, secondary: null },
-{ id: "sulphate-heptahydrate", name: "Zinc Sulphate Heptahydrate", percentage: 0.2273, secondary: null },
-{ id: "acetate", name: "Zinc Acetate", percentage: 0.3564, secondary: null }
-],
-rdaGroups: [
-{ name: "Children (1-3y)", rda: 3.3 },
-{ name: "Children (4-6y)", rda: 4.5 },
-{ name: "Children (7-9y)", rda: 5.9 },
-{ name: "Boy (10-12y)", rda: 8.5 },
-{ name: "Girl (10-12y)", rda: 8.5 },
-{ name: "Boy (13-15y)", rda: 14.3 },
-{ name: "Girl (13-15y)", rda: 12.8 },
-{ name: "Boy (16-18y)", rda: 17.6 },
-{ name: "Girl (16-18y)", rda: 14.2 },
-{ name: "Men (19-50y)", rda: 17 },
-{ name: "Women (19-50y)", rda: 13.2 },
-{ name: "Pregnant (19-30y)", rda: 14.5 },
-{ name: "Lactating (19-30y)", rda: 14.1 }
-]
-},
-potassium: {
-name: "Potassium",
-saltForms: [
-{ id: "sulfate", name: "Potassium Sulfate", percentage: 0.4486, secondary: null },
-{ id: "iodide", name: "Potassium Iodide", percentage: 0.2349, secondary: { name: "Iodine", percentage: 0.7644 } },
-{ id: "chloride", name: "Potassium Chloride", percentage: 0.5243, secondary: null },
-{ id: "citrate", name: "Potassium Citrate", percentage: 0.1275, secondary: null },
-{ id: "aspartate", name: "Aspartate Potassium", percentage: 0.1084, secondary: null },
-{ id: "magnesium-citrate", name: "Potassium Magnesium Citrate", percentage: 0.1548, secondary: { name: "Magnesium", percentage: 0.0962 } },
-{ id: "phosphate-monobasic", name: "Potassium Phosphate Monobasic", percentage: 0.2873, secondary: null },
-{ id: "carbonate", name: "Potassium Carbonate", percentage: 0.5656, secondary: null }
-],
-rdaGroups: [
-{ name: "Children (1-3y)", rda: 3500 },
-{ name: "Children (4-6y)", rda: 3500 },
-{ name: "Children (7-9y)", rda: 3500 },
-{ name: "Boy (10-12y)", rda: 3500 },
-{ name: "Girl (10-12y)", rda: 3500 },
-{ name: "Boy (13-15y)", rda: 3500 },
-{ name: "Girl (13-15y)", rda: 3500 },
-{ name: "Boy (16-18y)", rda: 3500 },
-{ name: "Girl (16-18y)", rda: 3500 },
-{ name: "Men (19-50y)", rda: 3500 },
-{ name: "Women (19-50y)", rda: 3500 },
-{ name: "Pregnant (19-30y)", rda: 3500 },
-{ name: "Lactating (19-30y)", rda: 3500 }
-]
-},
-chromium: {
-name: "Chromium",
-rdaUnit: "mcg",
-saltForms: [
-{ id: "picolinate", name: "Chromium Picolinate", percentage: 0.1242, secondary: null },
-{ id: "chloride", name: "Chromium Chloride", percentage: 0.3283, secondary: { name: "Chloride", percentage: 0.2238 } },
-{ id: "piconicotinate", name: "Chromium Piconicotinate or Chromium nicotinate", percentage: 0.2986, secondary: null },
-{ id: "trioxide", name: "Chromium trioxide", percentage: 0.5199, secondary: null },
-{ id: "chloride-hexahydrate", name: "Chromium Chloride Hexahydrate", percentage: 0.1951, secondary: null }
-],
-rdaGroups: [
-{ name: "Children (1-3y)", rda: 50 },
-{ name: "Children (4-6y)", rda: 50 },
-{ name: "Children (7-9y)", rda: 50 },
-{ name: "Boy (10-12y)", rda: 50 },
-{ name: "Girl (10-12y)", rda: 50 },
-{ name: "Boy (13-15y)", rda: 50 },
-{ name: "Girl (13-15y)", rda: 50 },
-{ name: "Boy (16-18y)", rda: 50 },
-{ name: "Girl (16-18y)", rda: 50 },
-{ name: "Men (19-50y)", rda: 50 },
-{ name: "Women (19-50y)", rda: 50 },
-{ name: "Pregnant (19-30y)", rda: 50 },
-{ name: "Lactating (19-30y)", rda: 50 }
-]
-},
-molybdenum: {
-name: "Molybdenum",
-rdaUnit: "mcg",
-saltForms: [
-{ id: "pentoxide", name: "Molybdenum Pentoxide", percentage: 0.6665, secondary: null }
-],
-rdaGroups: [
-{ name: "Children (1-3y)", rda: null },
-{ name: "Children (4-6y)", rda: 45 },
-{ name: "Children (7-9y)", rda: 45 },
-{ name: "Boy (10-12y)", rda: 45 },
-{ name: "Girl (10-12y)", rda: 45 },
-{ name: "Boy (13-15y)", rda: 45 },
-{ name: "Girl (13-15y)", rda: 45 },
-{ name: "Boy (16-18y)", rda: 45 },
-{ name: "Girl (16-18y)", rda: 45 },
-{ name: "Men (19-50y)", rda: 45 },
-{ name: "Women (19-50y)", rda: 45 },
-{ name: "Pregnant (19-30y)", rda: 50 },
-{ name: "Lactating (19-30y)", rda: 50 }
-]
-},
-magnesium: {
-name: "Magnesium",
-saltForms: [
-{ id: "oxide", name: "Magnesium Oxide", percentage: 0.603, secondary: null },
-{ id: "dioxide", name: "Magnesium Dioxide", percentage: 0.4317, secondary: null },
-{ id: "sulfate", name: "Magnesium Sulfate", percentage: 0.2, secondary: null },
-{ id: "glycinate", name: "Magnesium Glycinate", percentage: 0.1409, secondary: null },
-{ id: "biglycinate", name: "Magnesium Biglycinate", percentage: 0.14, secondary: null },
-{ id: "hydroxide", name: "Magnesium Hydroxide", percentage: 0.4166, secondary: null },
-{ id: "gluconate", name: "Magnesium Gluconate", percentage: 0.0539, secondary: null },
-{ id: "chloride", name: "Magnesium Chloride", percentage: 0.2552, secondary: null },
-{ id: "citrate", name: "Magnesium Citrate", percentage: 0.1133, secondary: null },
-{ id: "carbonate", name: "Magnesium carbonate", percentage: 0.2882, secondary: null },
-{ id: "theonate", name: "Magnesium L Theonate", percentage: 0.0825, secondary: null },
-{ id: "acetyl-taurate", name: "Magnesium Acetyl Taurate", percentage: 0.0681, secondary: null },
-{ id: "ascorbate", name: "Magnesium Ascorbate", percentage: 0.0648, secondary: null },
-{ id: "hydrochloride", name: "Magnesium Hydrochloride", percentage: 0.4, secondary: null },
-{ id: "aspartate", name: "Magnesium Aspartate", percentage: 0.0842, secondary: null }
-],
-rdaGroups: [
-{ name: "Children (1-3y)", rda: 90 },
-{ name: "Children (4-6y)", rda: 125 },
-{ name: "Children (7-9y)", rda: 175 },
-{ name: "Boy (10-12y)", rda: 240 },
-{ name: "Girl (10-12y)", rda: 240 },
-{ name: "Boy (13-15y)", rda: 345 },
-{ name: "Girl (13-15y)", rda: 340 },
-{ name: "Boy (16-18y)", rda: 440 },
-{ name: "Girl (16-18y)", rda: 380 },
-{ name: "Men (19-50y)", rda: 440 },
-{ name: "Women (19-50y)", rda: 370 },
-{ name: "Pregnant (19-30y)", rda: 440 },
-{ name: "Lactating (19-30y)", rda: 400 }
-]
-},
-manganese: {
-name: "Manganese",
-saltForms: [
-{ id: "sulphate", name: "Manganese Sulphate", percentage: 0.3637, secondary: null },
-{ id: "chloride", name: "Manganese Chloride", percentage: 0.4364, secondary: null },
-{ id: "sulphate-monohydrate", name: "Manganese Sulphate Monohydrate", percentage: 0.3249, secondary: null },
-{ id: "glycinate", name: "Manganese Glycinate", percentage: 0.2705, secondary: null },
-{ id: "oxide", name: "Manganese Oxide", percentage: 0.6318, secondary: null }
-],
-rdaGroups: [
-{ name: "Children (1-3y)", rda: 9 },
-{ name: "Children (4-6y)", rda: 9 },
-{ name: "Children (7-9y)", rda: 9 },
-{ name: "Boy (10-12y)", rda: 9 },
-{ name: "Girl (10-12y)", rda: 9 },
-{ name: "Boy (13-15y)", rda: 9 },
-{ name: "Girl (13-15y)", rda: 9 },
-{ name: "Boy (16-18y)", rda: 9 },
-{ name: "Girl (16-18y)", rda: 9 },
-{ name: "Men (19-50y)", rda: 9 },
-{ name: "Women (19-50y)", rda: 9 },
-{ name: "Pregnant (19-30y)", rda: 9 },
-{ name: "Lactating (19-30y)", rda: 9 }
-]
-},
-selenium: {
-name: "Selenium",
-rdaUnit: "mcg",
-saltForms: [
-{ id: "dioxide", name: "Selenium Dioxide OR Selenium Dioxide Monohydrate", percentage: 0.7116, secondary: null },
-{ id: "selenomethionine", name: "Selenomethionine", percentage: 0.4026, secondary: null }
-],
-rdaGroups: [
-{ name: "Children (1-3y)", rda: 40 },
-{ name: "Children (4-6y)", rda: 40 },
-{ name: "Children (7-9y)", rda: 40 },
-{ name: "Boy (10-12y)", rda: 40 },
-{ name: "Girl (10-12y)", rda: 40 },
-{ name: "Boy (13-15y)", rda: 40 },
-{ name: "Girl (13-15y)", rda: 40 },
-{ name: "Boy (16-18y)", rda: 40 },
-{ name: "Girl (16-18y)", rda: 40 },
-{ name: "Men (19-50y)", rda: 40 },
-{ name: "Women (19-50y)", rda: 40 },
-{ name: "Pregnant (19-30y)", rda: 40 },
-{ name: "Lactating (19-30y)", rda: 40 }
-]
-}
+// --- DB & CONFIG ---
+const auditDB = {
+    "zinc_sulphate": { name: "Zinc Sulphate", yield: 0.42, rda: { men: 17, women: 13.2 } },
+    "ferrous_bisglycinate": { name: "Ferrous Bisglycinate", yield: 0.20, rda: { men: 19, women: 29 } },
+    "nac": { name: "N-Acetyl L-Cysteine", yield: 1.0, rda: null },
+    "b3": { name: "Vitamin B3", yield: 1.0, rda: { men: 18, women: 14 } },
+    "quercetin": { name: "Quercetin", yield: 1.0, rda: null },
+    "grape_seed": { name: "Grape Seed Extract", yield: 1.0, rda: null },
+    "green_tea": { name: "Green Tea Extract", yield: 1.0, rda: null },
+    "b5": { name: "Vitamin B5", yield: 0.92, rda: { men: 5, women: 5 } }
 };
 
-const vitaminData = {
-b1: {
-name: "Thiamine (B1)",
-forms: [
-{ id: "mononitrate", name: "Thiamine Mononitrate", percentage: 0.8105 },
-{ id: "hcl", name: "Thiamine HCL", percentage: 0.7867 },
-{ id: "benfotiamine", name: "Benfotiamine", percentage: 0.56 }
-],
-rdaUnit: "mg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 0.7 }, { name: "Children (4-6y)", rda: 0.9 }, { name: "Children (7-9y)", rda: 1.1 }, { name: "Boy (10-12y)", rda: 1.5 }, { name: "Girl (10-12y)", rda: 1.4 }, { name: "Boy (13-15y)", rda: 1.9 }, { name: "Girl (13-15y)", rda: 1.6 }, { name: "Boy (16-18y)", rda: 2.2 }, { name: "Girl (16-18y)", rda: 1.7 }, { name: "Men (19-50y)", rda: 1.8 }, { name: "Women (19-50y)", rda: 1.7 }, { name: "Pregnant (19-30y)", rda: 2.0 }, { name: "Lactating (19-30y)", rda: 2.1 } ]
-},
-b2: {
-name: "Riboflavin (B2)",
-forms: [
-{ id: "sodium-phosphate", name: "Riboflavin Sodium Phosphate", percentage: 0.7668 },
-{ id: "5-phosphate-sodium", name: "Riboflavin 5 Phosphate Sodium", percentage: 0.7316 }
-],
-rdaUnit: "mg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 1.1 }, { name: "Children (4-6y)", rda: 1.3 }, { name: "Children (7-9y)", rda: 1.6 }, { name: "Boy (10-12y)", rda: 2.1 }, { name: "Girl (10-12y)", rda: 1.9 }, { name: "Boy (13-15y)", rda: 2.7 }, { name: "Girl (13-15y)", rda: 2.2 }, { name: "Boy (16-18y)", rda: 3.1 }, { name: "Girl (16-18y)", rda: 2.3 }, { name: "Men (19-50y)", rda: 2.5 }, { name: "Women (19-50y)", rda: 2.4 }, { name: "Pregnant (19-30y)", rda: 2.0 }, { name: "Lactating (19-30y)", rda: 2.7 } ]
-},
-b3: {
-name: "Nicotinamide (B3)",
-forms: [{ id: "nicotinamide", name: "Nicotinamide", percentage: 1 }],
-rdaUnit: "mg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 7 }, { name: "Children (4-6y)", rda: 9 }, { name: "Children (7-9y)", rda: 11 }, { name: "Boy (10-12y)", rda: 15 }, { name: "Girl (10-12y)", rda: 14 }, { name: "Boy (13-15y)", rda: 19 }, { name: "Girl (13-15y)", rda: 16 }, { name: "Boy (16-18y)", rda: 22 }, { name: "Girl (16-18y)", rda: 17 }, { name: "Men (19-50y)", rda: 18 }, { name: "Women (19-50y)", rda: 14 }, { name: "Pregnant (19-30y)", rda: 16 }, { name: "Lactating (19-30y)", rda: 19 } ]
-},
-b5: {
-name: "Pantothenic Acid (B5)",
-forms: [{ id: "d-panthenol", name: "D-Panthenol", percentage: 1.0681 }],
-rdaUnit: "mg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 4 }, { name: "Children (4-6y)", rda: 4 }, { name: "Children (7-9y)", rda: 4 }, { name: "Boy (10-12y)", rda: 4 }, { name: "Girl (10-12y)", rda: 4 }, { name: "Boy (13-15y)", rda: 5 }, { name: "Girl (13-15y)", rda: 5 }, { name: "Boy (16-18y)", rda: 5 }, { name: "Girl (16-18y)", rda: 5 }, { name: "Men (19-50y)", rda: 5 }, { name: "Women (19-50y)", rda: 5 }, { name: "Pregnant (19-30y)", rda: 5 }, { name: "Lactating (19-30y)", rda: 7 } ]
-},
-b6: {
-name: "Pyridoxine (B6)",
-forms: [
-{ id: "hcl", name: "Pyridoxine HCL", percentage: 0.8226 },
-{ id: "p5p", name: "Pyridoxal-5-Phosphate", percentage: 0.6845 },
-{ id: "p5p-mono", name: "Pyridoxal-5-Phosphate Monohydrate", percentage: 0.6380 }
-],
-rdaUnit: "mg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 0.9 }, { name: "Children (4-6y)", rda: 1.2 }, { name: "Children (7-9y)", rda: 1.5 }, { name: "Boy (10-12y)", rda: 2 }, { name: "Girl (10-12y)", rda: 1.9 }, { name: "Boy (13-15y)", rda: 2.6 }, { name: "Girl (13-15y)", rda: 2.2 }, { name: "Boy (16-18y)", rda: 3 }, { name: "Girl (16-18y)", rda: 2.3 }, { name: "Men (19-50y)", rda: 2.4 }, { name: "Women (19-50y)", rda: 1.9 }, { name: "Pregnant (19-30y)", rda: 2.3 }, { name: "Lactating (19-30y)", rda: 2.56 } ]
-},
-b7: {
-name: "Biotin (B7)",
-forms: [{ id: "biotin", name: "Biotin", percentage: 1 }],
-rdaUnit: "mcg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 20 }, { name: "Children (4-6y)", rda: 25 }, { name: "Children (7-9y)", rda: 25 }, { name: "Boy (10-12y)", rda: 35 }, { name: "Girl (10-12y)", rda: 35 }, { name: "Boy (13-15y)", rda: 35 }, { name: "Girl (13-15y)", rda: 35 }, { name: "Boy (16-18y)", rda: 35 }, { name: "Girl (16-18y)", rda: 35 }, { name: "Men (19-50y)", rda: 40 }, { name: "Women (19-50y)", rda: 40 }, { name: "Pregnant (19-30y)", rda: 40 }, { name: "Lactating (19-30y)", rda: 45 } ]
-},
-b9: {
-name: "Folic Acid (B9)",
-forms: [
-{ id: "l-methylfolate", name: "L-Methylfolate", percentage: 0.9606 },
-{ id: "l-methylfolate-calcium", name: "L-Methylfolate Calcium", percentage: 0.8872 }
-],
-rdaUnit: "mcg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 120 }, { name: "Children (4-6y)", rda: 135 }, { name: "Children (7-9y)", rda: 170 }, { name: "Boy (10-12y)", rda: 220 }, { name: "Girl (10-12y)", rda: 225 }, { name: "Boy (13-15y)", rda: 285 }, { name: "Girl (13-15y)", rda: 245 }, { name: "Boy (16-18y)", rda: 340 }, { name: "Girl (16-18y)", rda: 270 }, { name: "Men (19-50y)", rda: 330 }, { name: "Women (19-50y)", rda: 220 }, { name: "Pregnant (19-30y)", rda: 570 }, { name: "Lactating (19-30y)", rda: 330 } ]
-},
-b12: {
-name: "Vitamin B12",
-forms: [{ id: "b12", name: "Cyanocobalamin & Methylcobalamin", percentage: 1 }],
-rdaUnit: "mcg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 1.2 }, { name: "Children (4-6y)", rda: 2.2 }, { name: "Children (7-9y)", rda: 2.2 }, { name: "Boy (10-12y)", rda: 2.2 }, { name: "Girl (10-12y)", rda: 2.2 }, { name: "Boy (13-15y)", rda: 2.2 }, { name: "Girl (13-15y)", rda: 2.2 }, { name: "Boy (16-18y)", rda: 2.2 }, { name: "Girl (16-18y)", rda: 2.2 }, { name: "Men (19-50y)", rda: 2.2 }, { name: "Women (19-50y)", rda: 2.2 }, { name: "Pregnant (19-30y)", rda: 2.45 }, { name: "Lactating (19-30y)", rda: 3.2 } ]
-},
-c: {
-name: "Ascorbic Acid (C)",
-forms: [{ id: "c", name: "Ascorbic Acid", percentage: 1 }],
-rdaUnit: "mg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 30 }, { name: "Children (4-6y)", rda: 35 }, { name: "Children (7-9y)", rda: 45 }, { name: "Boy (10-12y)", rda: 55 }, { name: "Girl (10-12y)", rda: 50 }, { name: "Boy (13-15y)", rda: 70 }, { name: "Girl (13-15y)", rda: 65 }, { name: "Boy (16-18y)", rda: 85 }, { name: "Girl (16-18y)", rda: 70 }, { name: "Men (19-50y)", rda: 80 }, { name: "Women (19-50y)", rda: 65 }, { name: "Pregnant (19-30y)", rda: 80 }, { name: "Lactating (19-30y)", rda: 115 } ]
-},
-a: {
-name: "Retinol (A)",
-forms: [
-{ id: "retinol", name: "Retinol", iu_to_mcg: 0.3 },
-{ id: "retinyl-acetate", name: "Retinyl Acetate", iu_to_mcg: 0.344 },
-{ id: "retinyl-palmitate", name: "Retinyl Palmitate", iu_to_mcg: 0.55 }
-],
-rdaUnit: "mcg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 390 }, { name: "Children (4-6y)", rda: 510 }, { name: "Children (7-9y)", rda: 630 }, { name: "Boy (10-12y)", rda: 770 }, { name: "Girl (10-12y)", rda: 790 }, { name: "Boy (13-15y)", rda: 930 }, { name: "Girl (13-15y)", rda: 890 }, { name: "Boy (16-18y)", rda: 1000 }, { name: "Girl (16-18y)", rda: 860 }, { name: "Men (19-50y)", rda: 1000 }, { name: "Women (19-50y)", rda: 840 }, { name: "Pregnant (19-30y)", rda: 900 }, { name: "Lactating (19-30y)", rda: 950 } ]
-},
-d: {
-name: "Calciferol (D)",
-forms: [
-{ id: "cholecalciferol", name: "Cholecalciferol", iu_to_mcg: 0.025 },
-{ id: "ergocalciferol", name: "Ergocalciferol", iu_to_mcg: 0.025 }
-],
-rdaUnit: "mcg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 15 }, { name: "Children (4-6y)", rda: 15 }, { name: "Children (7-9y)", rda: 15 }, { name: "Boy (10-12y)", rda: 15 }, { name: "Girl (10-12y)", rda: 15 }, { name: "Boy (13-15y)", rda: 15 }, { name: "Girl (13-15y)", rda: 15 }, { name: "Boy (16-18y)", rda: 15 }, { name: "Girl (16-18y)", rda: 15 }, { name: "Men (19-50y)", rda: 15 }, { name: "Women (19-50y)", rda: 15 }, { name: "Pregnant (19-30y)", rda: 15 }, { name: "Lactating (19-30y)", rda: 15 } ]
-},
-e: {
-name: "Tocopherol (E)",
-forms: [
-{ id: "d-alpha-tocopherol", name: "d-alpha-Tocopherol (natural)", mg_to_iu: 1.49 },
-{ id: "dl-alpha-tocopherol", name: "dl-alpha-Tocopherol (synthetic)", mg_to_iu: 1.1 },
-{ id: "d-alpha-tocopheryl-acetate", name: "d-alpha-Tocopheryl Acetate", mg_to_iu: 1.36 },
-{ id: "dl-alpha-tocopheryl-acetate", name: "dl-alpha-Tocopheryl Acetate", mg_to_iu: 1.0 },
-{ id: "d-alpha-tocopheryl-acid-succinate", name: "d-alpha-Tocopheryl Acid Succinate", mg_to_iu: 1.21 },
-{ id: "dl-alpha-tocopheryl-acid-succinate", name: "dl-alpha-Tocopheryl Acid Succinate", mg_to_iu: 0.89 }
-],
-rdaUnit: "mg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 10 }, { name: "Children (4-6y)", rda: 10 }, { name: "Children (7-9y)", rda: 10 }, { name: "Boy (10-12y)", rda: 10 }, { name: "Girl (10-12y)", rda: 10 }, { name: "Boy (13-15y)", rda: 10 }, { name: "Girl (13-15y)", rda: 10 }, { name: "Boy (16-18y)", rda: 10 }, { name: "Girl (16-18y)", rda: 10 }, { name: "Men (19-50y)", rda: 10 }, { name: "Women (19-50y)", rda: 10 }, { name: "Pregnant (19-30y)", rda: 10 }, { name: "Lactating (19-30y)", rda: 10 } ]
-},
-k: {
-name: "Vitamin K",
-forms: [{ id: "k1-k2", name: "Phytonadione & Menaquinone (K1 & K2)", percentage: 1 }],
-rdaUnit: "mcg",
-rdaGroups: [ { name: "Children (1-3y)", rda: 55 }, { name: "Children (4-6y)", rda: 55 }, { name: "Children (7-9y)", rda: 55 }, { name: "Boy (10-12y)", rda: 55 }, { name: "Girl (10-12y)", rda: 55 }, { name: "Boy (13-15y)", rda: 55 }, { name: "Girl (13-15y)", rda: 55 }, { name: "Boy (16-18y)", rda: 55 }, { name: "Girl (16-18y)", rda: 55 }, { name: "Men (19-50y)", rda: 55 }, { name: "Women (19-50y)", rda: 55 }, { name: "Pregnant (19-30y)", rda: 55 }, { name: "Lactating (19-30y)", rda: 55 } ]
-}
+const keyMap = [
+    { key: "zinc_sulphate", keywords: ["zinc", "sulphate"] },
+    { key: "ferrous_bisglycinate", keywords: ["ferrous", "bisglycinate"] },
+    { key: "nac", keywords: ["acetyl", "cysteine", "nac"] },
+    { key: "b3", keywords: ["b3", "nicotinamide", "niacin"] },
+    { key: "quercetin", keywords: ["quercetin"] },
+    { key: "grape_seed", keywords: ["grape", "seed"] },
+    { key: "green_tea", keywords: ["green", "tea"] }
+];
+
+// --- TAB LOGIC ---
+document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+        document.querySelectorAll('.tab, .tab-content').forEach(el => el.classList.remove('active'));
+        t.classList.add('active');
+        document.getElementById(t.dataset.tab).classList.add('active');
+    });
+});
+
+// --- MINERAL TAB LOGIC (Basic) ---
+const mData = {
+    calcium: [{id:'carbonate', name:'Carbonate', p:0.4}],
+    iron: [{id:'bisglycinate', name:'Bisglycinate', p:0.2}],
+    zinc: [{id:'sulphate', name:'Sulphate', p:0.42}]
 };
-
-document.addEventListener('DOMContentLoaded', () => {
-// Tab switching logic
-const tabs = document.querySelectorAll('.tab');
-const tabContents = document.querySelectorAll('.tab-content');
-
-tabs.forEach(tab => {
-tab.addEventListener('click', () => {
-tabs.forEach(t => t.classList.remove('active'));
-tab.classList.add('active');
-
-tabContents.forEach(content => {
-content.classList.remove('active');
+document.getElementById('mineral-select').addEventListener('change', (e) => {
+    const s = document.getElementById('mineral-salt-form'); s.innerHTML = '';
+    if(mData[e.target.value]) mData[e.target.value].forEach(x => s.add(new Option(x.name, x.id)));
 });
-document.getElementById(tab.dataset.tab).classList.add('active');
-});
+document.getElementById('calc-min').addEventListener('click', () => {
+    const m = document.getElementById('mineral-select').value;
+    const t = parseFloat(document.getElementById('min-target').value);
+    const salt = mData[m].find(x => x.id === document.getElementById('mineral-salt-form').value);
+    document.getElementById('min-result').innerText = (t/salt.p).toFixed(1) + " mg";
 });
 
-// --- Mineral Calculator Logic (REVERSED) ---
-const mineralSelect = document.getElementById('mineral-select');
-const mineralSaltForm = document.getElementById('mineral-salt-form');
-const calculateMineralBtn = document.getElementById('calculate-mineral');
-// REMOVED: Reverse calculation variables
-const mineralPercentageInfo = document.getElementById('mineral-percentage-info');
+// --- AUDIT LOGIC ---
+let rowCount = 0;
 
-mineralSelect.addEventListener('change', () => {
-const selectedMineralKey = mineralSelect.value;
-mineralSaltForm.innerHTML = '<option value="">-- Select Salt Form --</option>';
-// REMOVED: RDA group select population
-mineralPercentageInfo.style.display = 'none';
+// 1. TEXT PARSER (For Paste Box)
+function parseRawText() {
+    const text = document.getElementById('paste-area').value;
+    if(!text.trim()) { alert("Paste some text first!"); return; }
+    
+    const lines = text.split(/\n/);
+    const listDiv = document.getElementById('rows-list');
+    listDiv.innerHTML = ''; // Clear
 
-if (selectedMineralKey) {
-const selectedMineral = mineralData[selectedMineralKey];
-selectedMineral.saltForms.forEach(form => {
-const option = document.createElement('option');
-option.value = form.id;
-option.textContent = form.name;
-mineralSaltForm.appendChild(option);
-});
+    for(let i=0; i<lines.length; i++) {
+        const line = lines[i].toLowerCase().trim();
+        if(!line) continue;
 
-// REMOVED: RDA group select population logic
-}
-});
+        // Check for Ingredient Keyword
+        let matchedKey = null;
+        for(let item of keyMap) {
+            if(item.keywords.every(k => line.includes(k))) { // stricter match
+                matchedKey = item.key;
+                break;
+            }
+        }
+        
+        // Looser match if strict failed
+        if(!matchedKey) {
+            for(let item of keyMap) {
+                 if(item.keywords.some(k => line.includes(k))) { matchedKey = item.key; break; }
+            }
+        }
 
-mineralSaltForm.addEventListener('change', () => {
-const mineralKey = mineralSelect.value;
-const saltFormId = mineralSaltForm.value;
-mineralPercentageInfo.style.display = 'none';
-
-if (mineralKey && saltFormId) {
-const mineral = mineralData[mineralKey];
-const saltForm = mineral.saltForms.find(sf => sf.id === saltFormId);
-if (saltForm && saltForm.percentage !== null) {
-mineralPercentageInfo.innerHTML = `Contains <strong>${(saltForm.percentage * 100).toFixed(2)}%</strong> elemental ${mineral.name}.`;
-mineralPercentageInfo.style.display = 'block';
-}
-}
-});
-
-calculateMineralBtn.addEventListener('click', () => {
-const mineralKey = mineralSelect.value;
-const saltFormId = mineralSaltForm.value;
-// CHANGED: Get elemental amount from new ID
-let elementalAmount = parseFloat(document.getElementById('mineral-elemental-amount').value);
-const doseUnit = document.querySelector('input[name="mineral-units"]:checked').value;
-
-if (!mineralKey || !saltFormId || isNaN(elementalAmount)) {
-alert('Please fill in all mineral fields.');
-return;
-}
-
-// 1. Standardize elemental amount to mg for internal calculation
-let elementalAmountInMg = (doseUnit === 'mcg') ? elementalAmount / 1000 : elementalAmount;
-
-const mineral = mineralData[mineralKey];
-const saltForm = mineral.saltForms.find(sf => sf.id === saltFormId);
-const mineralRdaUnit = mineral.rdaUnit || 'mg';
-
-if (saltForm.percentage === null || saltForm.percentage === 0) {
-alert('This salt form does not provide the primary mineral or percentage is zero.');
-return;
-}
-
-// 2. REVERSED CALCULATION: Calculate required salt dose
-const requiredSaltDose = elementalAmountInMg / saltForm.percentage;
-
-// 3. Display the required salt dose (always in mg)
-document.getElementById('required-salt-dose-result').textContent = `${requiredSaltDose.toFixed(3)} mg`;
-
-// 4. Populate RDA table (based on the entered elemental amount)
-const mineralRdaResults = document.getElementById('mineral-rda-results');
-mineralRdaResults.innerHTML = '';
-mineral.rdaGroups.forEach(group => {
-    let elementalAmountForRda = elementalAmountInMg;
-    // If mineral's native RDA unit is mcg, convert the elemental amount to mcg for comparison
-    if (mineralRdaUnit === 'mcg') {
-        elementalAmountForRda *= 1000;
+        if(matchedKey) {
+            // Found ingredient. Now look for amount.
+            // Check current line first
+            let {amt, unit} = extractAmount(line);
+            
+            // If not found, check next line (often format is Name \n Amount)
+            if(!amt && i+1 < lines.length) {
+                let nextLine = lines[i+1].toLowerCase().trim();
+                let res = extractAmount(nextLine);
+                if(res.amt) {
+                    amt = res.amt;
+                    unit = res.unit;
+                    // Note: we don't skip i++ here to be safe, unless we are sure next line is ONLY amount
+                }
+            }
+            createRow(matchedKey, amt, unit);
+        }
     }
-
-    const percentageRda = group.rda ? (elementalAmountForRda / group.rda * 100).toFixed(2) : 'N/A';
-    const row = `<tr>
-        <td>${group.name}</td>
-        <td>${group.rda || '-'} ${mineralRdaUnit}</td>
-        <td>${percentageRda}%</td>
-    </tr>`;
-    mineralRdaResults.innerHTML += row;
-});
-
-// 5. Handle secondary info (based on the *calculated* salt dose)
-const secondaryInfoDiv = document.getElementById('mineral-secondary-info');
-if(saltForm.secondary && saltForm.secondary.percentage) {
-// CHANGED: Use requiredSaltDose for calculation
-const secondaryAmount = requiredSaltDose * saltForm.secondary.percentage;
-secondaryInfoDiv.innerHTML = `<p>This dose (${requiredSaltDose.toFixed(2)} mg of ${saltForm.name}) also provides <strong>${secondaryAmount.toFixed(2)} mg</strong> of <strong>${saltForm.secondary.name}</strong>.</p>`;
-secondaryInfoDiv.style.display = 'block';
-} else {
-secondaryInfoDiv.style.display = 'none';
 }
 
-document.getElementById('mineral-results').style.display = 'block';
-});
-
-// REMOVED: Reverse mineral calculation listener
-
-// --- Vitamin Calculator Logic (REVERSED) ---
-const vitaminSelect = document.getElementById('vitamin-select');
-const vitaminFormSelect = document.getElementById('vitamin-form');
-const calculateVitaminBtn = document.getElementById('calculate-vitamin');
-const unitContainer = document.getElementById('vitamin-unit-container');
-// REMOVED: Reverse calculation variables
-
-
-vitaminSelect.addEventListener('change', () => {
-const vitaminKey = vitaminSelect.value;
-const vitamin = vitaminData[vitaminKey];
-vitaminFormSelect.innerHTML = '<option value="">-- Select Form --</option>';
-// REMOVED: RDA group select population
-unitContainer.style.display = 'none';
-
-if (vitamin) {
-vitamin.forms.forEach(form => {
-const option = document.createElement('option');
-option.value = form.id;
-option.textContent = form.name;
-vitaminFormSelect.appendChild(option);
-});
-
-// REMOVED: RDA group select population
-
-// Show unit selection for specific vitamins
-if (['a', 'd', 'e'].includes(vitaminKey)) {
-unitContainer.style.display = 'block';
-} else {
-unitContainer.style.display = 'block'; // Always show for clarity, but disable non-relevant units.
-const rdaUnit = vitamin.rdaUnit;
-document.getElementById('vitamin-mg').disabled = rdaUnit !== 'mg';
-document.getElementById('vitamin-mcg').disabled = rdaUnit !== 'mcg';
-document.getElementById('vitamin-IU').disabled = true; // Only for A, D, E
-
-if (rdaUnit === 'mg') document.getElementById('vitamin-mg').checked = true;
-if (rdaUnit === 'mcg') document.getElementById('vitamin-mcg').checked = true;
-
-if (['a', 'd', 'e'].includes(vitaminKey)) {
-document.getElementById('vitamin-mg').disabled = false;
-document.getElementById('vitamin-mcg').disabled = false;
-document.getElementById('vitamin-IU').disabled = false;
-document.getElementById('vitamin-IU').checked = true;
-}
-}
-}
-});
-
-calculateVitaminBtn.addEventListener('click', () => {
-const vitaminKey = vitaminSelect.value;
-const formId = vitaminFormSelect.value;
-// CHANGED: Get elemental amount from new ID
-let elementalAmount = parseFloat(document.getElementById('vitamin-elemental-amount').value);
-
-if (!vitaminKey || !formId || isNaN(elementalAmount)) {
-alert('Please fill in all vitamin fields.');
-return;
+function extractAmount(str) {
+    const match = str.match(/(\d+(\.\d+)?)\s*(mg|mcg|iu|g)/);
+    if(match) return { amt: match[1], unit: match[3] };
+    const numOnly = str.match(/^(\d+(\.\d+)?)$/); // Line is just a number?
+    if(numOnly) return { amt: numOnly[1], unit: 'mg' }; // Default to mg
+    return { amt: null, unit: 'mg' };
 }
 
-const vitamin = vitaminData[vitaminKey];
-const form = vitamin.forms.find(f => f.id === formId);
-const selectedUnit = document.querySelector('input[name="vitamin-units"]:checked').value;
+// 2. OCR LOGIC (For Images)
+function loadImage(e) {
+    const r = new FileReader();
+    r.onload = function() { 
+        document.getElementById('preview').src = r.result; 
+        document.getElementById('preview').style.display = 'block';
+        document.getElementById('img-placeholder').style.display='none';
+    };
+    r.readAsDataURL(e.target.files[0]);
+}
 
-// 1. Standardize desired elemental amount to mg for internal calculation
-let elementalAmountInMg;
-if (selectedUnit === 'IU') {
-    if (['a', 'd'].includes(vitaminKey)) {
-        elementalAmountInMg = (elementalAmount * form.iu_to_mcg) / 1000;
-    } else if (vitaminKey === 'e') {
-        elementalAmountInMg = elementalAmount / form.mg_to_iu;
+function performOCR() {
+    const img = document.getElementById('preview');
+    if(!img.src) return;
+    document.getElementById('bar').style.width = '20%';
+    Tesseract.recognize(img.src, 'eng').then(({ data: { text } }) => {
+        document.getElementById('bar').style.width = '100%';
+        document.getElementById('paste-area').value = text; // Put detected text in box
+        parseRawText(); // Run parser
+    });
+}
+
+// 3. ROW & REPORT GENERATION
+function createRow(key, amt, unit) {
+    rowCount++;
+    const container = document.getElementById('rows-list');
+    if(container.innerHTML.includes('Rows will appear')) container.innerHTML = '';
+
+    let opts = '';
+    for(let k in auditDB) opts += `<option value="${k}" ${k===key?'selected':''}>${auditDB[k].name}</option>`;
+
+    const div = document.createElement('div');
+    div.className = 'audit-row new';
+    div.id = `row-${rowCount}`;
+    div.innerHTML = `
+        <select id="k-${rowCount}">${opts}</select>
+        <input type="number" id="a-${rowCount}" value="${amt||''}">
+        <select id="u-${rowCount}">
+            <option value="mg" ${unit==='mg'?'selected':''}>mg</option>
+            <option value="mcg" ${unit==='mcg'?'selected':''}>mcg</option>
+        </select>
+        <button onclick="this.parentElement.remove()" style="color:red; border:none; background:none;">X</button>
+    `;
+    container.appendChild(div);
+}
+
+function addEmptyRow() { createRow('zinc_sulphate', '', 'mg'); }
+
+function generateReport() {
+    const group = document.getElementById('rda-group').value;
+    const tbody = document.getElementById('report-body');
+    tbody.innerHTML = '';
+    
+    const rows = document.getElementById('rows-list').children;
+    for(let row of rows) {
+        if(row.tagName === 'P') continue;
+        const id = row.id.split('-')[1];
+        const key = document.getElementById(`k-${id}`).value;
+        const amt = parseFloat(document.getElementById(`a-${id}`).value);
+        const unit = document.getElementById(`u-${id}`).value;
+
+        if(!key || isNaN(amt)) continue;
+
+        const d = auditDB[key];
+        let elem = (unit==='mcg'?amt/1000:amt) * d.yield;
+        
+        let rdaHtml = '<span style="color:#999">-</span>';
+        if(d.rda) {
+            let target = d.rda[group];
+            let p = (elem / target) * 100; // Simplified assuming mg targets
+            let cls = p > 100 ? 'bg-red' : 'bg-green';
+            let txt = p > 100 ? 'High' : 'Safe';
+            rdaHtml = `<span class="badge ${cls}">${p.toFixed(0)}%</span> <small>${txt}</small>`;
+        }
+
+        tbody.innerHTML += `<tr>
+            <td>${d.name}</td>
+            <td>${amt} ${unit}</td>
+            <td>${elem.toFixed(1)} mg</td>
+            <td>${rdaHtml}</td>
+        </tr>`;
     }
-} else if (selectedUnit === 'mcg') {
-    elementalAmountInMg = elementalAmount / 1000;
-} else { // mg
-    elementalAmountInMg = elementalAmount;
+    document.getElementById('report-output').style.display = 'block';
 }
-
-// 2. REVERSED CALCULATION: Calculate required salt dose
-let requiredSaltDose;
-if (['a', 'd', 'e'].includes(vitaminKey)) {
-    // For A, D, E, the "salt dose" is the same as the elemental dose, just in mg
-    requiredSaltDose = elementalAmountInMg;
-} else {
-    // For B, C, K, divide by the elemental percentage
-    const percentage = form.percentage || 1;
-    if (percentage === 0) {
-        alert('Percentage for this form is zero, cannot calculate dose.');
-        return;
-    }
-    requiredSaltDose = elementalAmountInMg / percentage;
-}
-
-// 3. Display the required salt dose (always in mg)
-document.getElementById('required-vitamin-dose-result').textContent = `${requiredSaltDose.toFixed(3)} mg`;
-
-
-// 4. Populate RDA table (based on the entered elemental amount in mg)
-const vitaminRdaResults = document.getElementById('vitamin-rda-results');
-vitaminRdaResults.innerHTML = '';
-vitamin.rdaGroups.forEach(group => {
-    let percentageRda = 'N/A';
-    if (group.rda) {
-        let rdaInMg = vitamin.rdaUnit === 'mcg' ? group.rda / 1000 : group.rda;
-        percentageRda = `${(elementalAmountInMg / rdaInMg * 100).toFixed(2)}%`;
-    }
-    const row = `<tr>
-        <td>${group.name}</td>
-        <td>${group.rda || '-'} ${vitamin.rdaUnit}</td>
-        <td>${percentageRda}</td>
-    </tr>`;
-    vitaminRdaResults.innerHTML += row;
-});
-
-document.getElementById('vitamin-results').style.display = 'block';
-});
-
-// REMOVED: Reverse vitamin calculation listener
-
-});
-
 </script>
 </body>
 </html>
