@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Supplement Formulator & Auditor</title>
+<script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+
+<style>
+    :root {
+        --primary: #3498db;
+        --secondary: #2c3e50;
+        --success: #27ae60;
+        --danger: #c0392b;
+        --bg: #f5f7fa;
+    }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: var(--bg);
+    }
+
+    header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 25px;
+        background-color: var(--secondary);
+        color: white;
+        border-radius: 8px;
+    }
+    h1 { margin: 0; font-size: 2.2em; }
+
+    .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+    .tab {
+        padding: 12px 25px;
+        cursor: pointer;
+        background-color: #e0e0e0;
+        border: 1px solid #ddd;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        margin-right: 5px;
+        font-weight: bold;
+    }
+    .tab.active {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    .tab[data-tab="audit"].active { background-color: #8e44ad; border-color: #8e44ad; }
+
+    .tab-content {
+        display: none;
+        background: #fff;
+        padding: 25px;
+        border-radius: 0 8px 8px 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .tab-content.active { display: block; }
+
+    /* SHARED STYLES */
+    .calculator-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+    .input-group { background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 20px; }
+    label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
+    select, input[type="number"] {
+        padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 15px;
+    }
+    button.calculate-btn {
+        background-color: var(--primary); color: white; border: none; padding: 15px; border-radius: 6px;
+        cursor: pointer; font-size: 18px; font-weight: bold; width: 100%; margin-top: 10px;
+    }
+
+    /* AUDIT TAB STYLES */
+    .scanner-layout { display: grid; grid-template-columns: 40% 60%; gap: 20px; height: auto; min-height: 80vh; }
+    .scan-panel { border: 1px solid #ddd; padding: 15px; background: #fff; border-radius: 8px; }
+    
+    /* PASTE BOX STYLE */
+    .paste-area {
+        width: 100%;
+        height: 150px;
+        padding: 10px;
+        border: 2px dashed #8e44ad;
+        border-radius: 6px;
+        background: #fdfbff;
+        font-family: monospace;
+        font-size: 0.9em;
+        resize: vertical;
+        box-sizing: border-box;
+    }
+
+    .btn-parse {
+        background-color: #8e44ad;
+        color: white; border: none; padding: 10px; border-radius: 5px;
+        cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px;
+    }
+
+    .divider {
+        display: flex; align-items: center; text-align: center; margin: 20px 0; color: #888;
+    }
+    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #eee; }
+    .divider:not(:empty)::before { margin-right: .25em; }
+    .divider:not(:empty)::after { margin-left: .25em; }
+
+    .rows-container { background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd; min-height: 200px; }
+    
+    .audit-row {
+        display: grid; grid-template-columns: 2fr 1fr 1fr 0.5fr; gap: 10px; padding: 10px; border-bottom: 1px solid #eee;
+        background: #fff; align-items: center;
+    }
+    .audit-row.new { animation: flash 1s; background-color: #f3e5f5; }
+
+    /* REPORT TABLE */
+    .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .report-table th { background: #2c3e50; color: white; padding: 10px; text-align: left; }
+    .report-table td { padding: 10px; border-bottom: 1px solid #eee; }
+    
+    .badge { padding: 4px 8px; border-radius: 4px; color: white; font-size: 0.85em; font-weight: bold; }
+    .bg-green { background: #27ae60; }
+    .bg-red { background: #c0392b; }
+
+    @keyframes flash { 0% { background-color: #e1bee7; } 100% { background-color: #fff; } }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Pro Supplement Formulator</h1>
+</header>
+
+<div class="tabs">
+    <div class="tab active" data-tab="minerals">Minerals</div>
+    <div class="tab" data-tab="vitamins">Vitamins</div>
+    <div class="tab" data-tab="audit" style="color: #8e44ad;">AI Label Auditor</div>
+</div>
+
+<div id="minerals" class="tab-content active">
+    <h3>Standard Mineral Calculator</h3>
+    <div class="calculator-grid">
+        <div class="input-group">
+            <label>Select Mineral:</label>
+            <select id="mineral-select">
+                <option value="">-- Select --</option>
+                <option value="calcium">Calcium</option>
+                <option value="iron">Iron</option>
+                <option value="zinc">Zinc</option>
+                <option value="magnesium">Magnesium</option>
+            </select>
+            <label>Salt Form:</label>
+            <select id="mineral-salt-form"><option>-- Select Mineral First --</option></select>
+            <label>Target Amount (mg):</label>
+            <input type="number" id="min-target">
+            <button class="calculate-btn" id="calc-min">Calculate</button>
+        </div>
+        <div class="input-group">
+            <div id="min-result" class="big-result" style="font-size:2em; font-weight:bold;">0 mg</div>
+            <small>Required Salt Dose</small>
+        </div>
+    </div>
+</div>
+
+<div id="vitamins" class="tab-content">
+    <h3>Standard Vitamin Calculator</h3>
+    <p>Select Tab 1 or Tab 3 for primary features.</p>
+</div>
+
+<div id="audit" class="tab-content">
+    <div class="scanner-layout">
+        
+        <div class="scan-panel">
+            <h3 style="margin-top:0; color:#8e44ad;">Input Method</h3>
+            
+            <label><strong>Option A: Quick Paste Text</strong></label>
+            <textarea id="paste-area" class="paste-area" placeholder="Paste label text here...
+Example:
+Zinc Sulphate
+42 mg
+Ferrous Bisglycinate
+60 mg"></textarea>
+            <button class="btn-parse" onclick="parseRawText()">⬇️ Process Pasted Text</button>
+
+            <div class="divider">OR</div>
+
+            <label><strong>Option B: Upload Image</strong></label>
+            <input type="file" id="img-upload" accept="image/*" onchange="loadImage(event)" style="margin-bottom:10px;">
+            <div id="image-wrapper" style="background:#eee; height:150px; overflow:hidden; display:flex; justify-content:center; align-items:center; border-radius:4px;">
+                <img id="preview" style="max-height:100%; max-width:100%; display:none;">
+                <span id="img-placeholder" style="color:#999;">No Image</span>
+            </div>
+            <button class="calculate-btn" style="background:#2c3e50; font-size:1em; padding:10px;" onclick="performOCR()">✨ Auto-Scan Image</button>
+            <div id="progress" style="height:5px; background:#ddd; margin-top:5px;"><div id="bar" style="height:100%; width:0%; background:#8e44ad;"></div></div>
+        </div>
+
+        <div class="scan-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3 style="margin:0;">Detected Ingredients</h3>
+                <button onclick="addEmptyRow()" style="padding:5px 10px;">+ Manual Row</button>
+            </div>
+            
+            <div class="rows-container">
+                <div id="rows-list">
+                    <p style="color:#999; text-align:center; padding-top:50px;">Rows will appear here...</p>
+                </div>
+            </div>
+
+            <div style="margin-top:20px;">
+                <label>RDA Standard:</label>
+                <select id="rda-group">
+                    <option value="men">Adult Men (ICMR 2020)</option>
+                    <option value="women">Adult Women (ICMR 2020)</option>
+                </select>
+                <button class="calculate-btn" style="background-color: #8e44ad;" onclick="generateReport()">Generate Audit Report</button>
+            </div>
+
+            <div id="report-output" style="display:none;">
+                <h4>Audit Results</h4>
+                <table class="report-table">
+                    <thead><tr><th>Ingredient</th><th>Input</th><th>Elemental</th><th>RDA Status</th></tr></thead>
+                    <tbody id="report-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- DB & CONFIG ---
+const auditDB = {
+    "zinc_sulphate": { name: "Zinc Sulphate", yield: 0.42, rda: { men: 17, women: 13.2 } },
+    "ferrous_bisglycinate": { name: "Ferrous Bisglycinate", yield: 0.20, rda: { men: 19, women: 29 } },
+    "nac": { name: "N-Acetyl L-Cysteine", yield: 1.0, rda: null },
+    "b3": { name: "Vitamin B3", yield: 1.0, rda: { men: 18, women: 14 } },
+    "quercetin": { name: "Quercetin", yield: 1.0, rda: null },
+    "grape_seed": { name: "Grape Seed Extract", yield: 1.0, rda: null },
+    "green_tea": { name: "Green Tea Extract", yield: 1.0, rda: null },
+    "b5": { name: "Vitamin B5", yield: 0.92, rda: { men: 5, women: 5 } }
+};
+
+const keyMap = [
+    { key: "zinc_sulphate", keywords: ["zinc", "sulphate"] },
+    { key: "ferrous_bisglycinate", keywords: ["ferrous", "bisglycinate"] },
+    { key: "nac", keywords: ["acetyl", "cysteine", "nac"] },
+    { key: "b3", keywords: ["b3", "nicotinamide", "niacin"] },
+    { key: "quercetin", keywords: ["quercetin"] },
+    { key: "grape_seed", keywords: ["grape", "seed"] },
+    { key: "green_tea", keywords: ["green", "tea"] }
+];
+
+// --- TAB LOGIC ---
+document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+        document.querySelectorAll('.tab, .tab-content').forEach(el => el.classList.remove('active'));
+        t.classList.add('active');
+        document.getElementById(t.dataset.tab).classList.add('active');
+    });
+});
+
+// --- MINERAL TAB LOGIC (Basic) ---
+const mData = {
+    calcium: [{id:'carbonate', name:'Carbonate', p:0.4}],
+    iron: [{id:'bisglycinate', name:'Bisglycinate', p:0.2}],
+    zinc: [{id:'sulphate', name:'Sulphate', p:0.42}]
+};
+document.getElementById('mineral-select').addEventListener('change', (e) => {
+    const s = document.getElementById('mineral-salt-form'); s.innerHTML = '';
+    if(mData[e.target.value]) mData[e.target.value].forEach(x => s.add(new Option(x.name, x.id)));
+});
+document.getElementById('calc-min').addEventListener('click', () => {
+    const m = document.getElementById('mineral-select').value;
+    const t = parseFloat(document.getElementById('min-target').value);
+    const salt = mData[m].find(x => x.id === document.getElementById('mineral-salt-form').value);
+    document.getElementById('min-result').innerText = (t/salt.p).toFixed(1) + " mg";
+});
+
+// --- AUDIT LOGIC ---
+let rowCount = 0;
+
+// 1. TEXT PARSER (For Paste Box)
+function parseRawText() {
+    const text = document.getElementById('paste-area').value;
+    if(!text.trim()) { alert("Paste some text first!"); return; }
+    
+    const lines = text.split(/\n/);
+    const listDiv = document.getElementById('rows-list');
+    listDiv.innerHTML = ''; // Clear
+
+    for(let i=0; i<lines.length; i++) {
+        const line = lines[i].toLowerCase().trim();
+        if(!line) continue;
+
+        // Check for Ingredient Keyword
+        let matchedKey = null;
+        for(let item of keyMap) {
+            if(item.keywords.every(k => line.includes(k))) { // stricter match
+                matchedKey = item.key;
+                break;
+            }
+        }
+        
+        // Looser match if strict failed
+        if(!matchedKey) {
+            for(let item of keyMap) {
+                 if(item.keywords.some(k => line.includes(k))) { matchedKey = item.key; break; }
+            }
+        }
+
+        if(matchedKey) {
+            // Found ingredient. Now look for amount.
+            // Check current line first
+            let {amt, unit} = extractAmount(line);
+            
+            // If not found, check next line (often format is Name \n Amount)
+            if(!amt && i+1 < lines.length) {
+                let nextLine = lines[i+1].toLowerCase().trim();
+                let res = extractAmount(nextLine);
+                if(res.amt) {
+                    amt = res.amt;
+                    unit = res.unit;
+                    // Note: we don't skip i++ here to be safe, unless we are sure next line is ONLY amount
+                }
+            }
+            createRow(matchedKey, amt, unit);
+        }
+    }
+}
+
+function extractAmount(str) {
+    const match = str.match(/(\d+(\.\d+)?)\s*(mg|mcg|iu|g)/);
+    if(match) return { amt: match[1], unit: match[3] };
+    const numOnly = str.match(/^(\d+(\.\d+)?)$/); // Line is just a number?
+    if(numOnly) return { amt: numOnly[1], unit: 'mg' }; // Default to mg
+    return { amt: null, unit: 'mg' };
+}
+
+// 2. OCR LOGIC (For Images)
+function loadImage(e) {
+    const r = new FileReader();
+    r.onload = function() { 
+        document.getElementById('preview').src = r.result; 
+        document.getElementById('preview').style.display = 'block';
+        document.getElementById('img-placeholder').style.display='none';
+    };
+    r.readAsDataURL(e.target.files[0]);
+}
+
+function performOCR() {
+    const img = document.getElementById('preview');
+    if(!img.src) return;
+    document.getElementById('bar').style.width = '20%';
+    Tesseract.recognize(img.src, 'eng').then(({ data: { text } }) => {
+        document.getElementById('bar').style.width = '100%';
+        document.getElementById('paste-area').value = text; // Put detected text in box
+        parseRawText(); // Run parser
+    });
+}
+
+// 3. ROW & REPORT GENERATION
+function createRow(key, amt, unit) {
+    rowCount++;
+    const container = document.getElementById('rows-list');
+    if(container.innerHTML.includes('Rows will appear')) container.innerHTML = '';
+
+    let opts = '';
+    for(let k in auditDB) opts += `<option value="${k}" ${k===key?'selected':''}>${auditDB[k].name}</option>`;
+
+    const div = document.createElement('div');
+    div.className = 'audit-row new';
+    div.id = `row-${rowCount}`;
+    div.innerHTML = `
+        <select id="k-${rowCount}">${opts}</select>
+        <input type="number" id="a-${rowCount}" value="${amt||''}">
+        <select id="u-${rowCount}">
+            <option value="mg" ${unit==='mg'?'selected':''}>mg</option>
+            <option value="mcg" ${unit==='mcg'?'selected':''}>mcg</option>
+        </select>
+        <button onclick="this.parentElement.remove()" style="color:red; border:none; background:none;">X</button>
+    `;
+    container.appendChild(div);
+}
+
+function addEmptyRow() { createRow('zinc_sulphate', '', 'mg'); }
+
+function generateReport() {
+    const group = document.getElementById('rda-group').value;
+    const tbody = document.getElementById('report-body');
+    tbody.innerHTML = '';
+    
+    const rows = document.getElementById('rows-list').children;
+    for(let row of rows) {
+        if(row.tagName === 'P') continue;
+        const id = row.id.split('-')[1];
+        const key = document.getElementById(`k-${id}`).value;
+        const amt = parseFloat(document.getElementById(`a-${id}`).value);
+        const unit = document.getElementById(`u-${id}`).value;
+
+        if(!key || isNaN(amt)) continue;
+
+        const d = auditDB[key];
+        let elem = (unit==='mcg'?amt/1000:amt) * d.yield;
+        
+        let rdaHtml = '<span style="color:#999">-</span>';
+        if(d.rda) {
+            let target = d.rda[group];
+            let p = (elem / target) * 100; // Simplified assuming mg targets
+            let cls = p > 100 ? 'bg-red' : 'bg-green';
+            let txt = p > 100 ? 'High' : 'Safe';
+            rdaHtml = `<span class="badge ${cls}">${p.toFixed(0)}%</span> <small>${txt}</small>`;
+        }
+
+        tbody.innerHTML += `<tr>
+            <td>${d.name}</td>
+            <td>${amt} ${unit}</td>
+            <td>${elem.toFixed(1)} mg</td>
+            <td>${rdaHtml}</td>
+        </tr>`;
+    }
+    document.getElementById('report-output').style.display = 'block';
+}
+</script>
+</body>
+</html>
